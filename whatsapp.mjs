@@ -25,7 +25,8 @@ export const wa = { status: 'disconnected', qr: null, me: null, error: null, sin
 let reconnectTimer = null;
 let watchdog = null;
 let starting = false;
-let attempt = 0; // which browser profile to present; rotates if WhatsApp refuses the handshake
+let attempt = Number(kv.get('wa_browser') ?? process.env.WA_BROWSER ?? 0); // browser profile; must stay the one the phone was linked with
+let refused = 0; // handshakes refused in a row while already linked
 const BROWSERS = () => [Browsers.macOS('Desktop'), Browsers.ubuntu('Chrome'), Browsers.windows('Chrome')];
 
 function setStatus(s, extra = {}) {
@@ -174,7 +175,7 @@ function killSocket() {
 }
 
 export async function startWhatsApp(force = false) {
-  if (force === true && wa.status !== 'connected') { clearTimeout(watchdog); killSocket(); starting = false; attempt = 0; }
+  if (force === true && wa.status !== 'connected') { clearTimeout(watchdog); killSocket(); starting = false; if (!isPaired()) attempt = 0; }
   if (starting || (wa.sock && ['connecting', 'qr', 'connected'].includes(wa.status))) return;
   starting = true;
   clearTimeout(reconnectTimer);
@@ -190,7 +191,7 @@ export async function startWhatsApp(force = false) {
     if (!version) {
       try { ({ version } = await withTimeout(fetchLatestBaileysVersion(), 6000)); } catch (e) { log('version check skipped:', e?.message); }
     }
-    log('using WA version', version?.join('.') || 'bundled default');
+    log('using WA version', version?.join('.') || 'bundled default', 'browser profile', attempt % 3);
     const sock = makeWASocket({
       ...(version ? { version } : {}),
       auth: state,
@@ -221,7 +222,8 @@ export async function startWhatsApp(force = false) {
         clearTimeout(watchdog);
         wa.me = userPart(jidNormalizedUser(sock.user?.id));
         kv.set('wa_me', wa.me);
-        attempt = 0;
+        kv.set('wa_browser', attempt % 3); // remember the profile this device was linked with
+        refused = 0;
         setStatus('connected', { qr: null, error: null });
       }
       if (u.connection === 'close') {
@@ -231,13 +233,14 @@ export async function startWhatsApp(force = false) {
         if (code === DisconnectReason.loggedOut || code === 401) {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
           setStatus('logged_out', { qr: null, error: 'This device was unlinked from your phone. Scan a new QR code to reconnect.' });
-        } else if (!isPaired() && wa.status === 'connecting' && attempt < 2) {
+        } else if (!isPaired() && wa.status === 'connecting' && attempt % 3 < 2) {
           attempt++;
           log('handshake refused, retrying with another browser profile', attempt);
           reconnectTimer = setTimeout(startWhatsApp, 1500);
         } else if (!isPaired() && code !== DisconnectReason.restartRequired) {
           setStatus('disconnected', { qr: null, error: wa.status === 'qr' ? 'The QR code expired. Generate a new one to try again.' : 'Could not connect to WhatsApp. Please try again.' });
         } else {
+          if (code === 428 && ++refused % 3 === 0) { attempt++; log('linked session refused 3 times, trying browser profile', attempt % 3); }
           setStatus('reconnecting', { qr: null });
           reconnectTimer = setTimeout(startWhatsApp, code === DisconnectReason.restartRequired ? 500 : 4000);
         }
