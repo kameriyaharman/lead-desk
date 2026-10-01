@@ -4,9 +4,58 @@ import Anthropic from '@anthropic-ai/sdk';
 import { db, logEvent } from './db.mjs';
 import { bus } from './whatsapp.mjs';
 
+// Two providers: Anthropic (ANTHROPIC_API_KEY) or Google Gemini (GEMINI_API_KEY, has a free tier).
 const MODEL = process.env.AI_MODEL || 'claude-haiku-4-5';
-const client = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
-export const aiEnabled = () => !!client;
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+let geminiModel = process.env.GEMINI_MODEL || null;
+export const aiEnabled = () => !!(anthropic || GEMINI_KEY);
+const client = anthropic || GEMINI_KEY;
+
+class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
+
+async function pickGeminiModel() {
+  if (geminiModel) return geminiModel;
+  const r = await fetch(`${GEMINI_BASE}/models?pageSize=200&key=${encodeURIComponent(GEMINI_KEY)}`);
+  if (!r.ok) throw new HttpError(r.status, 'Gemini model list failed: ' + (await r.text()).slice(0, 200));
+  const names = ((await r.json()).models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map((m) => m.name.replace(/^models\//, ''))
+    .filter((n) => /flash/.test(n) && !/(image|tts|live|audio|embed|thinking|exp)/.test(n));
+  const stable = names.filter((n) => !/preview/.test(n));
+  const ver = (n) => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [0, 0])[1]);
+  const best = (list) => list.sort((x, y) => ver(y) - ver(x) || x.length - y.length)[0];
+  geminiModel = names.includes('gemini-flash-latest') ? 'gemini-flash-latest'
+    : best(stable.filter((n) => !/lite/.test(n))) || best(stable) || best(names);
+  if (!geminiModel) throw new Error('No Gemini Flash model available for this key');
+  console.log('[ai] using Gemini model', geminiModel);
+  return geminiModel;
+}
+
+async function complete(system, prompt) {
+  if (anthropic) {
+    const res = await anthropic.messages.create({ model: MODEL, max_tokens: 600, system, messages: [{ role: 'user', content: prompt }] });
+    return (res.content || []).map((c) => c.text || '').join('');
+  }
+  const model = await pickGeminiModel();
+  const r = await fetch(`${GEMINI_BASE}/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048 },
+    }),
+  });
+  if (!r.ok) {
+    const body = (await r.text()).slice(0, 300);
+    if (r.status === 404) geminiModel = process.env.GEMINI_MODEL || null; // model retired: pick again next time
+    throw new HttpError(r.status, 'Gemini error: ' + body);
+  }
+  const j = await r.json();
+  return (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+}
 
 const IST = 5.5 * 3600e3;
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -56,11 +105,7 @@ Current stage in my CRM: ${lead.stage}${lead.note ? `\nMy private note: ${lead.n
 
 CHAT:
 ${chat}`;
-  const res = await client.messages.create({
-    model: MODEL, max_tokens: 600, system: SYSTEM,
-    messages: [{ role: 'user', content: prompt }],
-  });
-  const txt = (res.content || []).map((c) => c.text || '').join('');
+  const txt = await complete(SYSTEM, prompt);
   const json = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
   let fu = json.follow_up_at ? parseIST(json.follow_up_at) : null;
   if (fu && fu < Date.now()) fu = Date.now() + 30 * 60e3;
@@ -89,7 +134,7 @@ async function tick() {
       try { await analyse(lead); changed = true; }
       catch (e) {
         console.error('AI failed for', lead.id, e?.status || '', e?.message || e);
-        if (e?.status === 401 || e?.status === 403) break;
+        if ([400, 401, 403, 404, 429].includes(e?.status) || e?.status >= 500) break; // key/quota/outage: retry later, keep the chat queued
         db.prepare('UPDATE leads SET ai_dirty=0, ai_at=? WHERE id=?').run(Date.now(), lead.id); // avoid retry loop
       }
     }
@@ -98,7 +143,8 @@ async function tick() {
 }
 
 export function startAI() {
-  if (!client) { console.log('AI off: set ANTHROPIC_API_KEY to turn on chat understanding.'); return; }
+  if (!client) { console.log('AI off: set GEMINI_API_KEY or ANTHROPIC_API_KEY to turn on chat understanding.'); return; }
+  console.log('[ai] provider', anthropic ? 'anthropic' : 'gemini');
   setInterval(tick, 30e3);
   setTimeout(tick, 5e3);
 }
