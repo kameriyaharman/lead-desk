@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lead Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: work queue on the left (what needs you now, first), the selected client's file on the right; phones get a full-screen sheet */
+:root{
+  --bg:#f3f4f6; --surface:#ffffff; --sunk:#eceef2; --line:#dcdfe6; --fg:#1b1f2a; --muted:#5d6475;
+  --accent:#b85a0c; --accent-ink:#ffffff; --accent-soft:#fbeedd;
+  --late:#b42318; --late-soft:#fde8e6; --due:#9a6700; --due-soft:#fff3cf; --ok:#1a7f4b; --ok-soft:#e1f4ea; --info:#2f56b0; --info-soft:#e6edfb;
+  --in:#ffffff; --out:#e7f3ea;
+  --f-display:"Familjen Grotesk","Segoe UI",system-ui,sans-serif; --f-body:"Figtree","Segoe UI",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#13151b; --surface:#1b1e26; --sunk:#232733; --line:#2f3442; --fg:#e8eaf0; --muted:#9aa1b2;
+  --accent:#f08c34; --accent-ink:#1a1206; --accent-soft:#3a2a18;
+  --late:#ff7b6e; --late-soft:#3d1f1d; --due:#f2c14e; --due-soft:#3a3018; --ok:#5fd39a; --ok-soft:#18342a; --info:#8fb0ff; --info-soft:#1f2a45;
+  --in:#232733; --out:#1d3328; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-weight:600}
+.btn:hover{border-color:var(--muted)} .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{padding:5px 9px;font-size:13px} .btn.danger{color:var(--late)} .btn.solid-danger{background:var(--late);color:#fff;border-color:var(--late)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* login */
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.login form{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px}
+.login h1{font-size:26px}
+.login input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px}
+.err{color:var(--late);font-size:13px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.top h1{font-size:26px;font-weight:700}
+.top .sub{color:var(--muted);font-size:13px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chip-status{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 10px;font-size:12.5px;font-weight:600}
+.chip-status i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chip-status.ok i{background:var(--ok)} .chip-status.warn i{background:var(--due)} .chip-status.bad i{background:var(--late)}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:12.5px}
+.stat.reply b{color:var(--accent)} .stat.late b{color:var(--late)} .stat.due b{color:var(--due)}
+@media (max-width:720px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.banner{border:1px solid var(--line);background:var(--due-soft);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+
+.main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:960px){.main{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{border:0;background:none;padding:7px 11px;border-radius:7px;color:var(--muted);font-weight:600;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--sunk);color:var(--fg)}
+.tab .c{font-family:var(--f-mono);font-size:11px;margin-left:5px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.filters input,.filters select{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px;min-width:0}
+.filters input{flex:1 1 200px}
+.group-h{padding:12px 14px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;display:flex;gap:6px}
+.row{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px 11px 0;border:0;border-top:1px solid var(--line);background:none;text-align:left;width:100%}
+.list .row:first-child{border-top:0}
+.row:hover{background:var(--sunk)} .row[aria-current="true"]{background:var(--accent-soft)}
+.row .stripe{align-self:stretch;border-radius:0 3px 3px 0}
+.row.k-reply .stripe{background:var(--accent)} .row.k-late .stripe{background:var(--late)} .row.k-due .stripe{background:var(--due)}
+.row .who{min-width:0}
+.nm{font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.line2{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.line2 .na{color:var(--fg)}
+.side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.s-new{background:var(--info-soft);color:var(--info)} .s-talking{background:var(--sunk);color:var(--fg)} .s-interested{background:var(--accent-soft);color:var(--accent)}
+.s-quote{background:var(--due-soft);color:var(--due)} .s-won{background:var(--ok-soft);color:var(--ok)} .s-lost{background:var(--sunk);color:var(--muted);text-decoration:line-through}
+.hot{color:var(--late);font-size:11px;font-weight:700;letter-spacing:.04em}
+.when{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.when.late{color:var(--late)} .when.due{color:var(--due)} .when.reply{color:var(--accent)}
+.tag{font-size:10.5px;font-weight:600;color:var(--muted);border:1px dashed var(--line);border-radius:4px;padding:0 5px}
+.empty{padding:34px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:8px;align-items:center}
+.empty h3{color:var(--fg);font-size:17px}
+.pipe{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:12px}
+.col{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.col h4{margin:0;font-size:12.5px;display:flex;justify-content:space-between;gap:6px;align-items:center}
+.col button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 8px;text-align:left;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.col small{color:var(--muted);font-family:var(--f-mono)}
+
+/* WhatsApp connect */
+.wa-box{padding:24px 18px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.wa-box h2{font-size:22px}
+.wa-box img{width:280px;max-width:100%;border-radius:10px;background:#fff;padding:8px;border:1px solid var(--line)}
+.steps{text-align:left;max-width:440px;color:var(--muted);margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.risk{background:var(--due-soft);border-radius:8px;padding:10px 12px;font-size:13px;text-align:left;max-width:560px}
+
+/* detail */
+.detail{display:flex;flex-direction:column;gap:14px;padding:16px}
+.d-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.d-head h2{font-size:22px;overflow-wrap:anywhere}
+.d-meta{color:var(--muted);font-size:13px;display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.ai{background:var(--sunk);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px}
+.ai .sum{font-size:15px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-family:var(--f-body);font-weight:600}
+.fu{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
+.fu-now{font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fields{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0;flex:1 1 150px}
+label.f input,label.f select,label.f textarea{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 9px;color:var(--fg);font-size:14px;width:100%;min-width:0}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.chat{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:6px;max-height:460px;overflow-y:auto}
+.day{align-self:center;font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:1px 9px;margin:6px 0 2px}
+.b{max-width:85%;padding:6px 10px 4px;border-radius:10px;border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
+.b.in{align-self:flex-start;background:var(--in)} .b.out{align-self:flex-end;background:var(--out)}
+.b .t{display:block;text-align:right;font-family:var(--f-mono);font-size:10.5px;color:var(--muted);margin-top:2px}
+.ev{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--late-soft);border-radius:8px;padding:8px 10px}
+.nosel{padding:40px 20px;text-align:center;color:var(--muted)}
+.close-sheet{display:none}
+@media (max-width:960px){
+  .side-panel{position:fixed;inset:0;z-index:20;border-radius:0;overflow-y:auto;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .side-panel.closed{display:none} .close-sheet{display:inline-flex}
+}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-weight:600;z-index:40}
+</style>
+</head>
+<body>
+
+<div class="login" id="login" hidden>
+  <form id="login-form">
+    <h1>Lead Desk</h1>
+    <div style="color:var(--muted)">Apna dashboard password daalein.</div>
+    <input type="password" id="pw" autocomplete="current-password" placeholder="Password" required>
+    <div class="err" id="login-err" hidden></div>
+    <button class="btn primary" type="submit">Login</button>
+  </form>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <h1>Lead Desk</h1>
+      <div class="sub"><span id="today-label"></span>
+        <button class="chip-status" id="wa-chip" data-tab="whatsapp"><i></i><span id="wa-chip-t">WhatsApp…</span></button>
+        <span class="chip-status" id="ai-chip"><i></i><span id="ai-chip-t">AI</span></span>
+      </div>
+    </div>
+    <button class="btn small" id="logout">Logout</button>
+  </header>
+
+  <div class="banner" id="wa-banner" hidden><span id="wa-banner-t"></span><button class="btn small primary" data-tab="whatsapp">WhatsApp connect karein</button></div>
+
+  <section class="stats">
+    <button class="stat reply" data-tab="today"><b id="st-reply">–</b><span>Reply pending</span></button>
+    <button class="stat late" data-tab="today"><b id="st-late">–</b><span>Follow-up overdue</span></button>
+    <button class="stat due" data-tab="today"><b id="st-due">–</b><span>Aaj follow-up karna hai</span></button>
+    <button class="stat" data-tab="today"><b id="st-new">–</b><span>Aaj aayi nayi leads</span></button>
+  </section>
+
+  <div class="main">
+    <section class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab" data-tab="today">Aaj ka kaam<span class="c" id="c-today"></span></button>
+        <button class="tab" data-tab="upcoming">Aage ke follow-ups<span class="c" id="c-up"></span></button>
+        <button class="tab" data-tab="all">Saari leads<span class="c" id="c-all"></span></button>
+        <button class="tab" data-tab="pipeline">Pipeline</button>
+        <button class="tab" data-tab="hidden">Hatayi gayi</button>
+        <button class="tab" data-tab="whatsapp">WhatsApp</button>
+      </div>
+      <div class="filters" id="filters" hidden>
+        <input id="q" type="search" placeholder="Naam, number ya chat mein se search" aria-label="Search">
+        <select id="sf" aria-label="Filter"></select>
+      </div>
+      <div id="area"></div>
+    </section>
+    <aside class="panel side-panel closed" id="side"><div id="detail"></div></aside>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const STAGES=[['new','Nayi'],['talking','Baat chal rahi'],['interested','Interested'],['quote','Quote bheja'],['won','Deal pakki'],['lost','Lost']];
+const SL=Object.fromEntries(STAGES);
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WD=['Ravivar','Somvar','Mangalvar','Budhvar','Guruvar','Shukravar','Shanivar'];
+const REPLY_AFTER=15*60e3;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let leads=[],hiddenLeads=[],waState={status:'unknown'},aiOn=false,tab='today',selId=null,detail=null,q='',sf='all',confirmKey=null;
+
+/* ---------- time ---------- */
+const pad=n=>String(n).padStart(2,'0');
+function t12(d){let h=d.getHours();const ap=h>=12?'PM':'AM';h=h%12||12;return `${h}:${pad(d.getMinutes())} ${ap}`}
+function dd(a,b){const A=new Date(a.getFullYear(),a.getMonth(),a.getDate()),B=new Date(b.getFullYear(),b.getMonth(),b.getDate());return Math.round((A-B)/864e5)}
+function nice(ms){if(!ms)return '';const d=new Date(ms),n=dd(d,new Date());if(n===0)return 'Aaj '+t12(d);if(n===1)return 'Kal '+t12(d);if(n===-1)return 'Kal (beeta) '+t12(d);return `${d.getDate()} ${MON[d.getMonth()]}, ${t12(d)}`}
+function ago(ms){const m=Math.round((Date.now()-ms)/60e3);if(m<60)return m+' min';const h=Math.round(m/60);if(h<24)return h+' ghante';return Math.round(h/24)+' din'}
+function localInput(ms){if(!ms)return '';const d=new Date(ms);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
+const isToday=ms=>ms&&dd(new Date(ms),new Date())===0;
+
+/* ---------- classify ---------- */
+const closed=l=>l.stage==='won'||l.stage==='lost';
+const notLead=l=>l.is_lead_ai===0;
+const active=l=>!closed(l)&&!notLead(l);
+const replyPending=l=>active(l)&&l.last_from_me===0&&Date.now()-l.last_msg_at>REPLY_AFTER&&Date.now()-l.last_msg_at<14*864e5;
+const fuLate=l=>active(l)&&l.follow_up_at&&l.follow_up_at<Date.now();
+const fuToday=l=>active(l)&&l.follow_up_at&&l.follow_up_at>=Date.now()&&isToday(l.follow_up_at);
+const fuLater=l=>active(l)&&l.follow_up_at&&!isToday(l.follow_up_at)&&l.follow_up_at>Date.now();
+const newToday=l=>!notLead(l)&&isToday(l.first_msg_at);
+const nameOf=l=>l.display_name||(l.phone?'+'+l.phone:'Unknown');
+
+/* ---------- api ---------- */
+async function api(path,opt={}){const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json'},...opt,body:opt.body?JSON.stringify(opt.body):undefined});
+  if(r.status===401){showLogin();throw new Error('login')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Kuch gadbad hui');return j}
+function toast(t){const e=$('toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2400)}
+
+/* ---------- render ---------- */
+function render(){
+  const reply=leads.filter(replyPending),late=leads.filter(l=>fuLate(l)&&!replyPending(l)),due=leads.filter(l=>fuToday(l)&&!replyPending(l)),nt=leads.filter(newToday),up=leads.filter(fuLater);
+  $('st-reply').textContent=reply.length;$('st-late').textContent=late.length;$('st-due').textContent=due.length;$('st-new').textContent=nt.length;
+  $('c-today').textContent=(reply.length+late.length+due.length)||'';$('c-up').textContent=up.length||'';$('c-all').textContent=leads.filter(l=>!notLead(l)).length||'';
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
+  $('filters').hidden=tab!=='all';
+  renderWaChip();
+  const area=$('area');let h='';
+  if(tab==='whatsapp'){area.innerHTML=waView();renderDetail();return}
+  if(!leads.length&&tab!=='hidden'){area.innerHTML=`<div class="empty"><h3>Abhi koi lead nahi hai</h3><div>${waState.status==='connected'?'WhatsApp connected hai. Purani chats sync ho rahi hain, aur naye messages aate hi leads yahan apne aap dikhengi.':'Pehle WhatsApp tab mein jaake apna number link karein. Uske baad har chat apne aap yahan aa jayegi.'}</div>${waState.status!=='connected'?'<button class="btn primary" data-tab="whatsapp">WhatsApp connect karein</button>':''}</div>`;renderDetail();return}
+  if(tab==='today'){
+    const ntOnly=nt.filter(l=>!reply.includes(l)&&!late.includes(l)&&!due.includes(l));
+    if(reply.length)h+=group('Client ka message aaya, aapne reply nahi kiya',reply.sort((a,b)=>a.last_msg_at-b.last_msg_at),'reply');
+    if(late.length)h+=group('Follow-up overdue',late.sort((a,b)=>a.follow_up_at-b.follow_up_at),'late');
+    if(due.length)h+=group('Aaj follow-up karna hai',due.sort((a,b)=>a.follow_up_at-b.follow_up_at),'due');
+    if(ntOnly.length)h+=group('Aaj aayi nayi leads',ntOnly,'new');
+    if(!h)h=`<div class="empty"><h3>Aaj ka sab kaam ho gaya</h3><div>Na koi reply pending hai, na koi follow-up baaki.</div></div>`;
+  }else if(tab==='upcoming'){
+    const by={};up.sort((a,b)=>a.follow_up_at-b.follow_up_at).forEach(l=>{const d=new Date(l.follow_up_at);const k=d.toDateString();(by[k]=by[k]||{d,ls:[]}).ls.push(l)});
+    for(const k in by){const {d,ls}=by[k];h+=group(dd(d,new Date())===1?'Kal':`${d.getDate()} ${MON[d.getMonth()]} · ${WD[d.getDay()]}`,ls,'up')}
+    if(!h)h=`<div class="empty"><h3>Aage koi follow-up set nahi hai</h3></div>`;
+  }else if(tab==='all'){
+    const qq=q.trim().toLowerCase();
+    const rows=leads.filter(l=>{if(sf==='notlead')return notLead(l);if(notLead(l))return false;if(sf!=='all'&&l.stage!==sf)return false;
+      return !qq||[l.display_name,l.phone,l.need,l.summary,l.last_text].join(' ').toLowerCase().includes(qq)});
+    h=rows.length?`<div class="list">${rows.map(l=>row(l,'all')).join('')}</div>`:`<div class="empty"><h3>Kuch nahi mila</h3></div>`;
+  }else if(tab==='pipeline'){
+    h='<div class="pipe">'+STAGES.map(([k,lab])=>{const ls=leads.filter(l=>l.stage===k&&!notLead(l));
+      return `<div class="col"><h4><span class="pill s-${k}">${lab}</span><small>${ls.length}</small></h4>${ls.slice(0,60).map(l=>`<button data-open="${esc(l.id)}">${esc(nameOf(l))}</button>`).join('')||'<small>—</small>'}${ls.length>60?`<small>+${ls.length-60} aur</small>`:''}</div>`}).join('')+'</div>';
+  }else if(tab==='hidden'){
+    h=hiddenLeads.length?`<div class="group-h">Inhe aapne “Lead nahi hai” mark kiya</div><div class="list">${hiddenLeads.map(l=>row(l,'all')).join('')}</div>`:`<div class="empty"><h3>Koi chat hatayi nahi gayi</h3><div>Personal ya faltu chats ko lead ke andar “Lead nahi hai” dabake yahan bhej sakte hain.</div></div>`;
+  }
+  area.innerHTML=h;renderDetail();
+}
+function group(t,ls,k){return `<div class="group-h">${esc(t)} · ${ls.length}</div><div class="list">${ls.map(l=>row(l,k)).join('')}</div>`}
+function row(l,k){
+  let w='',cls='';
+  if(replyPending(l)){w=`<span class="when reply">${ago(l.last_msg_at)} se reply nahi</span>`;cls='k-reply'}
+  else if(fuLate(l)){w=`<span class="when late">${l.follow_type==='call'?'Call':'Msg'} · ${nice(l.follow_up_at)}</span>`;cls='k-late'}
+  else if(fuToday(l)){w=`<span class="when due">${l.follow_type==='call'?'Call':'Msg'} · ${t12(new Date(l.follow_up_at))}</span>`;cls='k-due'}
+  else if(fuLater(l))w=`<span class="when">${l.follow_type==='call'?'Call':'Msg'} · ${nice(l.follow_up_at)}</span>`;
+  else w=`<span class="when">${nice(l.last_msg_at)}</span>`;
+  const l2=l.next_action&&!closed(l)?`<span class="na">${esc(l.next_action)}</span>`:esc((l.last_from_me?'Aap: ':'')+(l.last_text||''));
+  return `<button class="row ${cls}" data-open="${esc(l.id)}" aria-current="${l.id===selId}"><span class="stripe"></span>
+  <span class="who"><span class="nm">${esc(nameOf(l))}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}${notLead(l)?'<span class="tag">AI: lead nahi</span>':''}</span>
+  <div class="line2">${l.need?esc(l.need)+' · ':''}${l2}</div></span>
+  <span class="side"><span class="pill s-${esc(l.stage)}">${esc(SL[l.stage]||l.stage)}</span>${w}</span></button>`}
+
+/* ---------- WhatsApp view ---------- */
+function renderWaChip(){
+  const c=$('wa-chip'),s=waState.status;
+  c.className='chip-status '+(s==='connected'?'ok':s==='qr'||s==='connecting'||s==='reconnecting'?'warn':'bad');
+  $('wa-chip-t').textContent=s==='connected'?'WhatsApp connected':s==='qr'?'QR scan baaki':s==='connecting'||s==='reconnecting'?'Connect ho raha hai…':'WhatsApp connected nahi';
+  $('ai-chip').className='chip-status '+(aiOn?'ok':'bad');$('ai-chip-t').textContent=aiOn?'AI on':'AI off';
+  const b=$('wa-banner');const show=['disconnected','logged_out','error'].includes(s)&&tab!=='whatsapp';
+  b.hidden=!show;if(show)$('wa-banner-t').textContent=waState.error||'WhatsApp abhi linked nahi hai — naye messages track nahi ho rahe.';
+}
+function waView(){
+  const s=waState.status;
+  const risk=`<div class="risk">Yeh WhatsApp ka unofficial tarika hai (linked device, jaise WhatsApp Web). Number ban hone ka thoda risk rehta hai. Yeh system sirf messages padhta hai — kabhi kisi ko message nahi bhejta, blue tick nahi lagata. Phone ko kam se kam 14 din mein ek baar internet pe aana chahiye, warna link apne aap hat jayega.</div>`;
+  if(s==='connected')return `<div class="wa-box"><h2>Connected — <span class="mono">+${esc(waState.me||'')}</span></h2>
+    <div style="color:var(--muted);max-width:520px">Is number pe aane wala har 1:1 message apne aap lead ban jata hai aur chat yahan save hoti hai. Aap phone se pehle jaise reply karte rahein — aapke reply bhi yahan dikhenge.</div>
+    ${waState.historyProgress!=null&&waState.historyProgress<100?`<div class="mono" style="color:var(--muted)">Purani chats sync: ${waState.historyProgress}%</div>`:''}
+    ${confirmKey==='wa'?`<div class="confirm"><span>Link hata dein? Purani leads rahengi, naye messages track nahi honge.</span><button class="btn small solid-danger" id="wa-off-yes">Haan, disconnect</button><button class="btn small" id="wa-off-no">Rehne dein</button></div>`:`<button class="btn danger" id="wa-off">Disconnect / dobara link</button>`}${risk}</div>`;
+  if(s==='qr'&&waState.qr)return `<div class="wa-box"><h2>Phone se QR scan karein</h2><img src="${waState.qr}" alt="WhatsApp link QR code">
+    <ol class="steps"><li>Phone pe <b>WhatsApp Business</b> kholein</li><li>Upar ⋮ menu (iPhone: Settings) → <b>Linked devices</b></li><li><b>Link a device</b> dabake yeh QR scan karein</li></ol>
+    <div style="color:var(--muted);font-size:12.5px">QR har ~20 second mein badalta hai, page apne aap update hota rahega.</div>${risk}</div>`;
+  if(s==='connecting'||s==='reconnecting'||(s==='qr'&&!waState.qr))return `<div class="wa-box"><h2>Connect ho raha hai…</h2><div style="color:var(--muted)">Kuch second rukiye.</div></div>`;
+  return `<div class="wa-box"><h2>Apna WhatsApp link karein</h2>
+    <div style="color:var(--muted);max-width:520px">Link karte hi pichhli chats sync hongi aur har naya message apne aap lead ban jayega. AI har chat padhke batayega ki client ko kya chahiye aur kab follow-up karna hai.</div>
+    ${waState.error?`<div class="err">${esc(waState.error)}</div>`:''}<button class="btn primary" id="wa-on">QR code dikhayein</button>${risk}</div>`;
+}
+
+/* ---------- detail ---------- */
+async function openLead(id){selId=id;confirmKey=null;render();await loadDetail()}
+async function loadDetail(){if(!selId){detail=null;return renderDetail()}
+  try{detail=await api('/api/leads/'+encodeURIComponent(selId))}catch(e){detail=null;selId=null}renderDetail();
+  const c=document.querySelector('.chat');if(c)c.scrollTop=c.scrollHeight}
+function renderDetail(){
+  const side=$('side'),box=$('detail');
+  if(!selId||!detail){side.classList.add('closed');box.innerHTML=`<div class="nosel">Kisi lead pe click karein — AI summary, poori chat aur next follow-up yahan dikhega.</div>`;return}
+  side.classList.remove('closed');
+  const a=document.activeElement;if(a&&box.contains(a)&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName))return; // don't wipe what you're typing
+  const l=detail.lead;const wa=l.phone?'https://wa.me/'+l.phone:'';
+  let lastDay='',chat='';
+  for(const m of detail.messages){const d=new Date(m.ts);const k=d.toDateString();
+    if(k!==lastDay){lastDay=k;const n=dd(d,new Date());chat+=`<div class="day">${n===0?'Aaj':n===-1?'Kal':`${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`}</div>`}
+    chat+=`<div class="b ${m.from_me?'out':'in'}">${esc(m.text)}<span class="t">${t12(d)}</span></div>`}
+  const fuTxt=!l.follow_up_at?(closed(l)?'Lead closed hai':'Koi follow-up set nahi'):`<span class="pill" style="background:${fuLate(l)?'var(--late-soft)':fuToday(l)?'var(--due-soft)':'var(--sunk)'};color:${fuLate(l)?'var(--late)':fuToday(l)?'var(--due)':'var(--fg)'}">${l.follow_type==='call'?'Call karna hai':'Message karna hai'}</span><span class="mono">${nice(l.follow_up_at)}</span><span style="color:var(--muted);font-size:12px">(${l.follow_source==='manual'?'aapne set kiya':'AI ne set kiya'})</span>`;
+  box.innerHTML=`<div class="detail">
+  <div class="d-head"><div style="min-width:0"><h2>${esc(nameOf(l))}</h2>
+    <div class="d-meta">${l.phone?`<span class="mono">+${esc(l.phone)}</span>`:'<span>Number chhupa hua</span>'}${l.wa_name&&l.name&&l.wa_name!==l.name?`<span>WhatsApp: ${esc(l.wa_name)}</span>`:''}<span>Pehla message: ${nice(l.first_msg_at)}</span></div></div>
+    <div class="acts">${wa?`<a class="btn small" href="${wa}" target="_blank" rel="noopener">WhatsApp kholein</a>`:''}${l.phone?`<button class="btn small" id="d-copy">Number copy</button>`:''}<button class="btn small close-sheet" id="d-close">Band karein</button></div></div>
+
+  ${replyPending(l)?`<div class="banner" style="background:var(--accent-soft)"><span><b>Reply pending:</b> client ne ${ago(l.last_msg_at)} pehle message kiya, aapne jawab nahi diya.</span></div>`:''}
+
+  <div class="ai">${l.summary?`<div class="sum">${esc(l.summary)}</div>`:`<div style="color:var(--muted)">${aiOn?(l.ai_dirty?'AI is chat ko padh raha hai…':'AI summary abhi nahi bani.'):'AI band hai — summary ke liye server pe AI key set karni hogi.'}</div>`}
+    <dl class="kv">${l.need?`<dt>Requirement</dt><dd>${esc(l.need)}</dd>`:''}${l.budget?`<dt>Budget</dt><dd>${esc(l.budget)}</dd>`:''}${l.next_action&&!closed(l)?`<dt>Agla kaam</dt><dd><b>${esc(l.next_action)}</b></dd>`:''}${l.priority?`<dt>Priority</dt><dd>${l.priority==='hot'?'<span class="hot">HOT</span>':esc(l.priority)}</dd>`:''}</dl>
+    ${aiOn?`<div><button class="btn small" id="d-re">AI se dobara padhwaayein</button></div>`:''}</div>
+
+  <div class="sec"><h3>Next follow-up</h3><div class="fu"><div class="fu-now">${fuTxt}</div>
+    <div class="fields"><label class="f">Kab<input type="datetime-local" id="d-fu" value="${localInput(l.follow_up_at)}"></label>
+      <label class="f" style="flex:0 1 130px">Kya karna hai<select id="d-ft"><option value="message" ${l.follow_type!=='call'?'selected':''}>Message</option><option value="call" ${l.follow_type==='call'?'selected':''}>Call</option></select></label></div>
+    <div class="quick"><button class="btn small" data-q="2h">+2 ghante</button><button class="btn small" data-q="1">Kal 11 AM</button><button class="btn small" data-q="3">3 din baad</button><button class="btn small" data-q="7">Agle hafte</button></div>
+    <div class="quick"><button class="btn small primary" id="d-fu-save">Follow-up save karein</button>${l.follow_up_at?`<button class="btn small" id="d-done">Ho gaya ✓</button>`:''}</div></div></div>
+
+  <div class="sec"><h3>Lead details</h3><div class="fields">
+    <label class="f">Stage<select id="d-st">${STAGES.map(([k,lab])=>`<option value="${k}" ${l.stage===k?'selected':''}>${lab}</option>`).join('')}</select></label>
+    <label class="f">Naam<input id="d-name" value="${esc(l.name||'')}" placeholder="${esc(l.wa_name||'Client ka naam')}"></label>
+    <label class="f" style="flex-basis:100%">Aapka private note<textarea id="d-note" rows="2" placeholder="Jo baat chat mein nahi hai — call pe kya hua, etc.">${esc(l.note||'')}</textarea></label></div>
+    <div class="quick"><button class="btn small" id="d-save">Details save karein</button></div></div>
+
+  <div class="sec"><h3>Chat (${l.msg_count} messages)</h3><div class="chat">${chat||'<div style="color:var(--muted)">Koi message nahi</div>'}</div></div>
+
+  ${detail.events.length?`<div class="sec"><h3>History</h3><div class="ev">${detail.events.slice(0,15).map(e=>`<div><span class="mono">${nice(e.ts)}</span> · ${esc(e.text)}</div>`).join('')}</div></div>`:''}
+
+  <div>${l.hidden?`<button class="btn small" id="d-unhide">Wapas leads mein laayein</button>`:confirmKey==='hide'?`<div class="confirm"><span>Yeh chat leads list se hat jayegi (data delete nahi hoga).</span><button class="btn small solid-danger" id="d-hide-yes">Haan, hatao</button><button class="btn small" id="d-hide-no">Rehne dein</button></div>`:`<button class="btn small danger" id="d-hide">Lead nahi hai (personal / faltu)</button>`}</div>
+  </div>`;
+}
+
+/* ---------- events ---------- */
+async function patch(body,msg){try{await api('/api/leads/'+encodeURIComponent(selId),{method:'PATCH',body});toast(msg);await refresh()}catch(e){if(e.message!=='login')toast(e.message)}}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-tab]');if(t){tab=t.dataset.tab;confirmKey=null;render();if(tab==='hidden')loadHidden();window.scrollTo({top:0});return}
+  const o=e.target.closest('[data-open]');if(o){openLead(o.dataset.open);return}
+  const qb=e.target.closest('[data-q]');if(qb){const d=new Date();if(qb.dataset.q==='2h')d.setHours(d.getHours()+2);else{d.setDate(d.getDate()+Number(qb.dataset.q));d.setHours(11,0,0,0)}$('d-fu').value=localInput(d.getTime());return}
+  const id=e.target.id;
+  try{switch(id){
+    case 'wa-on':waState={status:'connecting'};render();waState=await api('/api/wa/connect',{method:'POST'});render();break;
+    case 'wa-off':confirmKey='wa';render();break;
+    case 'wa-off-no':confirmKey=null;render();break;
+    case 'wa-off-yes':confirmKey=null;waState=await api('/api/wa/disconnect',{method:'POST'});render();toast('WhatsApp disconnect ho gaya');break;
+    case 'd-close':selId=null;detail=null;render();break;
+    case 'd-copy':{const p='+'+detail.lead.phone;try{await navigator.clipboard.writeText(p);toast('Number copy ho gaya')}catch{toast(p)}break}
+    case 'd-fu-save':{const v=$('d-fu').value;await patch({follow_up_at:v?new Date(v).getTime():null,follow_type:$('d-ft').value},'Follow-up save ho gaya');break}
+    case 'd-done':await api('/api/leads/'+encodeURIComponent(selId)+'/done',{method:'POST',body:{}});toast('Done — zaroorat ho to agla follow-up set karein');await refresh();break;
+    case 'd-save':{document.activeElement?.blur();await patch({stage:$('d-st').value,name:$('d-name').value.trim(),note:$('d-note').value.trim()},'Details save ho gayi');break}
+    case 'd-re':await api('/api/leads/'+encodeURIComponent(selId)+'/reanalyse',{method:'POST'});toast('AI chat dobara padh raha hai…');break;
+    case 'd-hide':confirmKey='hide';detail&&renderDetail();break;
+    case 'd-hide-no':confirmKey=null;renderDetail();break;
+    case 'd-hide-yes':confirmKey=null;await patch({hidden:true},'Leads list se hata diya');selId=null;detail=null;render();break;
+    case 'd-unhide':await patch({hidden:false},'Wapas leads mein aa gaya');loadHidden();break;
+    case 'logout':await fetch('/api/logout',{method:'POST'});location.reload();break;
+  }}catch(err){if(err.message!=='login')toast(err.message)}
+});
+document.addEventListener('change',e=>{if(e.target.id==='d-st'){document.activeElement?.blur();patch({stage:e.target.value},'Stage badal diya')}});
+$('q').addEventListener('input',e=>{q=e.target.value;render()});
+$('sf').innerHTML='<option value="all">Sab stages</option>'+STAGES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')+'<option value="notlead">AI: lead nahi hai</option>';
+$('sf').addEventListener('change',e=>{sf=e.target.value;render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selId){selId=null;detail=null;render()}});
+
+/* ---------- data + live ---------- */
+let refreshing=false,again=false;
+async function refresh(){if(refreshing){again=true;return}refreshing=true;
+  try{const r=await api('/api/leads');leads=r.leads;if(tab==='hidden')await loadHidden(true);render();if(selId)await loadDetail()}catch{}
+  refreshing=false;if(again){again=false;refresh()}}
+async function loadHidden(silent){try{hiddenLeads=(await api('/api/leads?hidden=1')).leads;if(!silent)render()}catch{}}
+function live(){const es=new EventSource('/api/events');
+  es.addEventListener('change',()=>refresh());
+  es.addEventListener('wa',e=>{const s=JSON.parse(e.data);const was=waState.status;waState=s;if(was!=='connected'&&s.status==='connected')toast('WhatsApp connected!');
+    if(tab==='whatsapp'&&!confirmKey)$('area').innerHTML=waView();renderWaChip()});
+  es.onerror=()=>{};}
+
+function showLogin(){$('app').hidden=true;$('login').hidden=false;$('pw').focus()}
+$('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-err').hidden=true;
+  const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('pw').value})});
+  if(r.ok){$('login').hidden=true;boot()}else{const j=await r.json().catch(()=>({}));$('login-err').textContent=j.error||'Login nahi hua';$('login-err').hidden=false}});
+
+function setDay(){const d=new Date();$('today-label').textContent=`${WD[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`}
+async function boot(){
+  try{const s=await api('/api/state');waState=s.wa;aiOn=s.ai}catch{return}
+  $('app').hidden=false;setDay();
+  if(waState.status!=='connected'&&waState.status!=='reconnecting'&&waState.status!=='connecting')tab='whatsapp';
+  render();await refresh();live();
+  setInterval(()=>{setDay();const a=document.activeElement;if(!a||!['INPUT','TEXTAREA','SELECT'].includes(a.tagName))render()},60e3);
+}
+boot();
+</script>
+</body>
+</html>
