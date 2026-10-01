@@ -31,11 +31,11 @@ Chats are often in Hinglish (Hindi in Roman script), Hindi or English.
 Fields:
 - "is_lead": true if the contact is a prospective or current customer/enquiry for the business; false for family, friends, vendors, spam, OTP/delivery bots, or staff.
 - "name": the client's name or company if it appears in the chat, else null.
-- "need": what the client wants, max 12 words, in simple Hinglish/English. null if unclear.
+- "need": what the client wants, max 12 words, in English. null if unclear.
 - "budget": budget or quoted price as written (e.g. "₹50k", "₹1.2L quoted"), else null.
 - "stage": one of "new" (only enquired, no real reply yet), "talking" (discussion going on), "interested" (clearly interested / asked price or details), "quote" (price or proposal sent, waiting), "won" (confirmed, advance paid, or work started), "lost" (said no, went silent after many follow-ups, or chose someone else).
-- "summary": 1-2 short sentences in Hinglish: what has happened so far and where it stands now.
-- "next_action": the single next thing ME should do, max 12 words, Hinglish, e.g. "Quotation PDF bhejna", "Call karke budget confirm karna".
+- "summary": 1-2 short sentences in English: what has happened so far and where it stands now.
+- "next_action": the single next thing ME should do, max 12 words, in English, e.g. "Send the quotation PDF", "Call to confirm budget".
 - "follow_up_at": when ME should next contact the client, as "YYYY-MM-DD HH:MM" in India time. Rules: if the client asked for a specific time ("kal call karna", "Monday ko baat karte hain", "after Diwali"), use that. If the client's last message is unanswered, use within 2 hours of now (but during 10:00-20:00). If ME promised to send something, use the promised time or next working day 11:00. If waiting on the client after a quote, 2 days after the last message at 11:00. If stage is won or lost or is_lead is false, null. Never return a time in the past; if the right time already passed, return now + 30 minutes.
 - "follow_type": "call" if a call was asked for or is clearly better, else "message".
 - "priority": "hot" (ready to buy / urgent / big budget), "warm", or "cold".`;
@@ -72,7 +72,7 @@ ${chat}`;
     .run(json.is_lead === false ? 0 : 1, json.name || null, json.need || null, json.budget || null, stage,
       json.summary || null, json.next_action || null, closed ? null : fu, json.follow_type === 'call' ? 'call' : 'message',
       ['hot', 'warm', 'cold'].includes(json.priority) ? json.priority : null, Date.now(), Date.now(), lead.id);
-  if (stage !== lead.stage) logEvent(lead.id, `AI ne stage badla: ${lead.stage} → ${stage}`);
+  if (stage !== lead.stage) logEvent(lead.id, `AI moved stage: ${lead.stage} → ${stage}`);
 }
 
 let running = false;

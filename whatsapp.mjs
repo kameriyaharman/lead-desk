@@ -17,23 +17,30 @@ bus.setMaxListeners(100);
 const AUTH_DIR = path.join(DATA_DIR, 'auth');
 const HISTORY_DAYS = Number(process.env.HISTORY_DAYS || 90);
 const logger = pino({ level: process.env.WA_LOG_LEVEL || 'warn' });
+const log = (...a) => console.log('[wa]', ...a);
 
 db.exec(`CREATE TABLE IF NOT EXISTS contacts (jid TEXT PRIMARY KEY, name TEXT)`);
 
 export const wa = { status: 'disconnected', qr: null, me: null, error: null, since: null, sock: null, historyProgress: null };
 let reconnectTimer = null;
+let watchdog = null;
 let starting = false;
 
 function setStatus(s, extra = {}) {
   Object.assign(wa, { status: s, since: Date.now() }, extra);
+  log('status', s, extra.error || '');
   bus.emit('wa', publicStatus());
 }
 export function publicStatus() {
   return { status: wa.status, qr: wa.qr, me: wa.me, error: wa.error, since: wa.since, historyProgress: wa.historyProgress };
 }
-export const hasSavedLogin = () => fs.existsSync(path.join(AUTH_DIR, 'creds.json'));
+// true only once a phone has actually been linked (not just keys generated)
+export function isPaired() {
+  try { return !!JSON.parse(fs.readFileSync(path.join(AUTH_DIR, 'creds.json'), 'utf8'))?.me?.id; } catch { return false; }
+}
 
 const userPart = (jid) => (jid || '').split('@')[0].split(':')[0];
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
 /* ---------- text extraction ---------- */
 function unwrap(m) {
@@ -137,7 +144,7 @@ async function ingest(msg, { history = false } = {}) {
       wa_name=CASE WHEN ?=0 AND ? IS NOT NULL THEN ? ELSE wa_name END,
       ai_dirty=1
     WHERE id=?`).run(ts, ts, ts, ts, ts, fromMe, ts, fromMe, ts, fromMe, msg.pushName || null, msg.pushName || null, who.id);
-  if (created && !history) logEvent(who.id, 'Nayi lead WhatsApp se aayi');
+  if (created && !history) logEvent(who.id, 'New lead from WhatsApp');
   return true;
 }
 
@@ -157,16 +164,26 @@ function saveContacts(list) {
 }
 
 /* ---------- connection ---------- */
-export async function startWhatsApp() {
-  if (starting || (wa.sock && ['connecting', 'qr', 'connected'].includes(wa.status))) return;
+function killSocket() {
+  const s = wa.sock;
+  wa.sock = null;
+  try { s?.ev?.removeAllListeners?.(); } catch { /* ignore */ }
+  try { s?.end?.(undefined); } catch { /* ignore */ }
+}
+
+export async function startWhatsApp(force = false) {
+  if (force === true && wa.status !== 'connected') { clearTimeout(watchdog); killSocket(); starting = false; }
+  if (starting ||(wa.sock && ['connecting', 'qr', 'connected'].includes(wa.status))) return;
   starting = true;
   clearTimeout(reconnectTimer);
+  clearTimeout(watchdog);
   try {
+    setStatus('connecting', { qr: null, error: null });
     fs.mkdirSync(AUTH_DIR, { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     let version;
-    try { ({ version } = await fetchLatestBaileysVersion()); } catch { /* use bundled default */ }
-    setStatus('connecting', { qr: null, error: null });
+    try { ({ version } = await withTimeout(fetchLatestBaileysVersion(), 6000)); log('using WA version', version?.join('.')); }
+    catch (e) { log('version check skipped:', e?.message); }
     const sock = makeWASocket({
       ...(version ? { version } : {}),
       auth: state,
@@ -175,26 +192,39 @@ export async function startWhatsApp() {
       markOnlineOnConnect: false,   // phone keeps getting notifications
       syncFullHistory: true,
       generateHighQualityLinkPreview: false,
+      connectTimeoutMs: 30000,
     });
     wa.sock = sock;
     sock.ev.on('creds.update', saveCreds);
 
+    // if nothing happens (no QR, no login) in 45s, stop and let the user retry
+    watchdog = setTimeout(() => {
+      if (wa.sock === sock && wa.status === 'connecting') {
+        log('watchdog: no response from WhatsApp');
+        killSocket();
+        setStatus('error', { qr: null, error: 'WhatsApp did not respond. Please try again.' });
+      }
+    }, 45000);
+
     sock.ev.on('connection.update', async (u) => {
       if (wa.sock !== sock) return;
+      if (u.connection || u.qr) log('update', u.connection || '', u.qr ? 'qr' : '', u.lastDisconnect?.error?.output?.statusCode || '');
       if (u.qr) setStatus('qr', { qr: await QRCode.toDataURL(u.qr, { margin: 1, width: 320 }) });
       if (u.connection === 'open') {
+        clearTimeout(watchdog);
         wa.me = userPart(jidNormalizedUser(sock.user?.id));
         kv.set('wa_me', wa.me);
         setStatus('connected', { qr: null, error: null });
       }
       if (u.connection === 'close') {
+        clearTimeout(watchdog);
         const code = u.lastDisconnect?.error?.output?.statusCode;
         wa.sock = null;
         if (code === DisconnectReason.loggedOut || code === 401) {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-          setStatus('logged_out', { qr: null, error: 'Phone se link hata diya gaya. Dobara QR scan karein.' });
-        } else if (wa.status === 'qr' && !hasSavedLogin()) {
-          setStatus('disconnected', { qr: null, error: 'QR ka time khatam ho gaya. Dobara "Connect" dabayein.' });
+          setStatus('logged_out', { qr: null, error: 'This device was unlinked from your phone. Scan a new QR code to reconnect.' });
+        } else if (!isPaired() && code !== DisconnectReason.restartRequired) {
+          setStatus('disconnected', { qr: null, error: wa.status === 'qr' ? 'The QR code expired. Generate a new one to try again.' : 'Could not connect to WhatsApp. Please try again.' });
         } else {
           setStatus('reconnecting', { qr: null });
           reconnectTimer = setTimeout(startWhatsApp, code === DisconnectReason.restartRequired ? 500 : 4000);
@@ -212,15 +242,17 @@ export async function startWhatsApp() {
       let n = 0;
       for (const m of messages) if (await ingest(m, { history: true })) n++;
       wa.historyProgress = progress ?? wa.historyProgress;
+      log('history chunk', messages?.length || 0, 'msgs,', n, 'saved, progress', progress);
       bus.emit('wa', publicStatus());
       if (n) bus.emit('change');
     });
     sock.ev.on('contacts.upsert', (c) => { saveContacts(c); bus.emit('change'); });
     sock.ev.on('contacts.update', (c) => saveContacts(c));
   } catch (e) {
-    logger.error(e);
-    setStatus('error', { error: 'WhatsApp se connect nahi ho paaya: ' + (e?.message || e) });
-    reconnectTimer = setTimeout(startWhatsApp, 15000);
+    console.error('[wa] start failed', e);
+    killSocket();
+    setStatus('error', { error: 'Could not start the WhatsApp connection: ' + (e?.message || e) });
+    if (isPaired()) reconnectTimer = setTimeout(startWhatsApp, 15000);
   } finally {
     starting = false;
   }
@@ -228,15 +260,16 @@ export async function startWhatsApp() {
 
 export async function disconnectWhatsApp() {
   clearTimeout(reconnectTimer);
+  clearTimeout(watchdog);
   const s = wa.sock;
-  wa.sock = null;
-  try { await s?.logout(); } catch { /* already gone */ }
-  try { s?.end?.(undefined); } catch { /* ignore */ }
+  try { if (s && wa.status === 'connected') await withTimeout(s.logout(), 8000); } catch { /* already gone */ }
+  killSocket();
   fs.rmSync(AUTH_DIR, { recursive: true, force: true });
   setStatus('disconnected', { qr: null, me: null, error: null, historyProgress: null });
 }
 
 export function bootWhatsApp() {
   wa.me = kv.get('wa_me');
-  if (hasSavedLogin()) startWhatsApp();
+  if (isPaired()) startWhatsApp();
+  else fs.rmSync(AUTH_DIR, { recursive: true, force: true }); // half-finished link attempt: start clean
 }

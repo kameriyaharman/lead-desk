@@ -1,212 +1,302 @@
 <!doctype html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Lead Desk</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: work queue on the left (what needs you now, first), the selected client's file on the right; phones get a full-screen sheet */
+/* Layout: ink sidebar + topbar shell; pages swap in the main column; a lead opens as a slide-over from the right */
 :root{
-  --bg:#f3f4f6; --surface:#ffffff; --sunk:#eceef2; --line:#dcdfe6; --fg:#1b1f2a; --muted:#5d6475;
-  --accent:#b85a0c; --accent-ink:#ffffff; --accent-soft:#fbeedd;
-  --late:#b42318; --late-soft:#fde8e6; --due:#9a6700; --due-soft:#fff3cf; --ok:#1a7f4b; --ok-soft:#e1f4ea; --info:#2f56b0; --info-soft:#e6edfb;
-  --in:#ffffff; --out:#e7f3ea;
-  --f-display:"Familjen Grotesk","Segoe UI",system-ui,sans-serif; --f-body:"Figtree","Segoe UI",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-  --r:10px; color-scheme:light;
+  --canvas:#f5f6f8; --surface:#ffffff; --raised:#fbfbfc; --line:#e6e8ec; --line-2:#d9dce3;
+  --ink:#101828; --text:#1d2433; --muted:#667085; --faint:#98a2b3;
+  --brand:#0f766e; --brand-2:#14b8a6; --brand-soft:#e6f4f2; --brand-ink:#ffffff;
+  --side:#0c1322; --side-2:#141d31; --side-text:#c3cad8; --side-muted:#7c879c;
+  --red:#d92d20; --red-soft:#fef3f2; --amber:#b54708; --amber-soft:#fffaeb; --green:#067647; --green-soft:#ecfdf3; --blue:#175cd3; --blue-soft:#eff8ff; --violet:#6941c6; --violet-soft:#f4f3ff;
+  --in:#ffffff; --out:#dcf3ef;
+  --f-ui:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:12px; --shadow:0 1px 2px rgba(16,24,40,.05); --shadow-lg:0 20px 40px -12px rgba(16,24,40,.25);
+  color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#13151b; --surface:#1b1e26; --sunk:#232733; --line:#2f3442; --fg:#e8eaf0; --muted:#9aa1b2;
-  --accent:#f08c34; --accent-ink:#1a1206; --accent-soft:#3a2a18;
-  --late:#ff7b6e; --late-soft:#3d1f1d; --due:#f2c14e; --due-soft:#3a3018; --ok:#5fd39a; --ok-soft:#18342a; --info:#8fb0ff; --info-soft:#1f2a45;
-  --in:#232733; --out:#1d3328; color-scheme:dark}}
+  --canvas:#0b111c; --surface:#111a29; --raised:#152033; --line:#1f2a3d; --line-2:#2a3750;
+  --ink:#f2f4f7; --text:#e4e7ec; --muted:#98a2b3; --faint:#667085;
+  --brand:#2dd4bf; --brand-2:#14b8a6; --brand-soft:#0f2e2c; --brand-ink:#04201d;
+  --side:#070c16; --side-2:#0f1828;
+  --red:#f97066; --red-soft:#3a1715; --amber:#fdb022; --amber-soft:#36270b; --green:#47cd89; --green-soft:#0d2e1f; --blue:#84caff; --blue-soft:#102a4c; --violet:#bdb4fe; --violet-soft:#241c4a;
+  --in:#152033; --out:#123a35; color-scheme:dark}}
 *{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;height:100%}
+body{background:var(--canvas);color:var(--text);font-family:var(--f-ui);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 [hidden]{display:none!important}
-h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+h1,h2,h3,h4{margin:0;color:var(--ink);text-wrap:balance;letter-spacing:-.01em}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
-.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-weight:600}
-.btn:hover{border-color:var(--muted)} .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.btn.small{padding:5px 9px;font-size:13px} .btn.danger{color:var(--late)} .btn.solid-danger{background:var(--late);color:#fff;border-color:var(--late)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);background:var(--surface);color:var(--text);border-radius:9px;padding:8px 13px;font-weight:600;font-size:13.5px;box-shadow:var(--shadow);text-decoration:none;white-space:nowrap}
+.btn:hover{background:var(--raised)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.btn.ghost{box-shadow:none;border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--raised)}
+.btn.danger{color:var(--red)} .btn.solid-danger{background:var(--red);border-color:var(--red);color:#fff}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
 /* login */
-.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
-.login form{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px}
-.login h1{font-size:26px}
-.login input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px}
-.err{color:var(--late);font-size:13px}
+.login{min-height:100%;display:grid;place-items:center;padding:16px;background:radial-gradient(1200px 500px at 50% -10%,var(--brand-soft),transparent)}
+.login form{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow-lg)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;color:var(--ink)}
+.logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#fff}
+.logo-mark svg{width:17px;height:17px;stroke:#fff}
+.field{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea{border:1px solid var(--line-2);background:var(--surface);border-radius:9px;padding:9px 11px;font-size:14px;font-weight:500;color:var(--text);width:100%;min-width:0}
+.err{color:var(--red);font-size:13px}
 
-/* header */
-.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
-.top h1{font-size:26px;font-weight:700}
-.top .sub{color:var(--muted);font-size:13px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.chip-status{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 10px;font-size:12.5px;font-weight:600}
-.chip-status i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
-.chip-status.ok i{background:var(--ok)} .chip-status.warn i{background:var(--due)} .chip-status.bad i{background:var(--late)}
+/* shell */
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100%}
+.side{background:var(--side);color:var(--side-text);display:flex;flex-direction:column;gap:4px;padding:18px 12px;position:sticky;top:0;height:100vh}
+.side .logo{color:#fff;padding:2px 8px 18px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-h{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--side-muted);padding:14px 10px 6px;font-weight:700}
+.nav button{display:flex;align-items:center;gap:10px;border:0;background:none;color:var(--side-text);padding:8px 10px;border-radius:8px;font-weight:600;font-size:13.5px;text-align:left;width:100%}
+.nav button:hover{background:var(--side-2);color:#fff}
+.nav button[aria-current="page"]{background:var(--side-2);color:#fff;box-shadow:inset 2px 0 0 var(--brand-2)}
+.nav .count{margin-left:auto;font-family:var(--f-mono);font-size:11px;background:#ffffff14;border-radius:99px;padding:1px 7px;color:#fff}
+.nav .count.hot{background:var(--red);color:#fff}
+.side-foot{margin-top:auto;border-top:1px solid #ffffff12;padding:12px 8px 0;display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.conn{display:flex;align-items:center;gap:8px;color:var(--side-text)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.dot.ok{background:#22c55e;box-shadow:0 0 0 3px #22c55e33} .dot.warn{background:#f59e0b} .dot.bad{background:#ef4444}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--canvas) 85%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:12px 28px;flex-wrap:wrap}
+.topbar h1{font-size:19px;font-weight:700}
+.topbar .sub{color:var(--muted);font-size:12.5px}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);background:var(--surface);border-radius:9px;padding:7px 11px;min-width:0;flex:0 1 300px;color:var(--muted)}
+.search input{border:0;background:none;outline:none;min-width:0;width:100%;color:var(--text)}
+.content{padding:24px 28px 48px;display:flex;flex-direction:column;gap:20px;max-width:1400px;width:100%}
 
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:2px}
-.stat b{font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.stat span{color:var(--muted);font-size:12.5px}
-.stat.reply b{color:var(--accent)} .stat.late b{color:var(--late)} .stat.due b{color:var(--due)}
-@media (max-width:720px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.banner{border:1px solid var(--line);background:var(--due-soft);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+/* cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);min-width:0}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.card-h h3{font-size:14.5px;font-weight:700}
+.card-h .hint{color:var(--muted);font-size:12.5px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{padding:16px 18px;text-align:left;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow)}
+.kpi:hover{border-color:var(--line-2)}
+.kpi .top{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:600;font-size:12.5px}
+.kpi .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center}
+.kpi b{font-size:30px;font-weight:800;color:var(--ink);line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi .foot{font-size:12px;color:var(--faint)}
+.t-red{background:var(--red-soft);color:var(--red)} .t-amber{background:var(--amber-soft);color:var(--amber)} .t-green{background:var(--green-soft);color:var(--green)} .t-blue{background:var(--blue-soft);color:var(--blue)} .t-brand{background:var(--brand-soft);color:var(--brand)} .t-violet{background:var(--violet-soft);color:var(--violet)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:20px;min-width:0}
+@media (max-width:1100px){.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-.main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
-@media (max-width:960px){.main{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
-.tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--line);overflow-x:auto}
-.tab{border:0;background:none;padding:7px 11px;border-radius:7px;color:var(--muted);font-weight:600;white-space:nowrap}
-.tab[aria-selected="true"]{background:var(--sunk);color:var(--fg)}
-.tab .c{font-family:var(--f-mono);font-size:11px;margin-left:5px}
-.filters{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
-.filters input,.filters select{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px;min-width:0}
-.filters input{flex:1 1 200px}
-.group-h{padding:12px 14px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;display:flex;gap:6px}
-.row{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px 11px 0;border:0;border-top:1px solid var(--line);background:none;text-align:left;width:100%}
-.list .row:first-child{border-top:0}
-.row:hover{background:var(--sunk)} .row[aria-current="true"]{background:var(--accent-soft)}
-.row .stripe{align-self:stretch;border-radius:0 3px 3px 0}
-.row.k-reply .stripe{background:var(--accent)} .row.k-late .stripe{background:var(--late)} .row.k-due .stripe{background:var(--due)}
-.row .who{min-width:0}
-.nm{font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.line2{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.line2 .na{color:var(--fg)}
-.side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted);white-space:nowrap}
-.s-new{background:var(--info-soft);color:var(--info)} .s-talking{background:var(--sunk);color:var(--fg)} .s-interested{background:var(--accent-soft);color:var(--accent)}
-.s-quote{background:var(--due-soft);color:var(--due)} .s-won{background:var(--ok-soft);color:var(--ok)} .s-lost{background:var(--sunk);color:var(--muted);text-decoration:line-through}
-.hot{color:var(--late);font-size:11px;font-weight:700;letter-spacing:.04em}
-.when{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
-.when.late{color:var(--late)} .when.due{color:var(--due)} .when.reply{color:var(--accent)}
-.tag{font-size:10.5px;font-weight:600;color:var(--muted);border:1px dashed var(--line);border-radius:4px;padding:0 5px}
-.empty{padding:34px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:8px;align-items:center}
-.empty h3{color:var(--fg);font-size:17px}
-.pipe{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:12px}
-.col{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.col h4{margin:0;font-size:12.5px;display:flex;justify-content:space-between;gap:6px;align-items:center}
-.col button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 8px;text-align:left;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.col small{color:var(--muted);font-family:var(--f-mono)}
+/* charts */
+.chart{padding:14px 18px 16px}
+.chart svg{display:block;width:100%;height:auto}
+.chart .lbl{fill:var(--faint);font-size:10px;font-family:var(--f-mono)}
+.chart .val{fill:var(--muted);font-size:10px;font-family:var(--f-mono)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .bar{fill:var(--brand-2)} .chart .bar.today{fill:var(--brand)}
+.stagebar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--raised);margin:4px 0 14px}
+.stagebar span{display:block;height:100%}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;font-size:13px}
+.legend div{display:flex;align-items:center;gap:8px}
+.legend i{width:9px;height:9px;border-radius:3px;flex:none}
+.legend b{margin-left:auto;font-family:var(--f-mono);font-weight:500;color:var(--muted)}
 
-/* WhatsApp connect */
-.wa-box{padding:24px 18px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-.wa-box h2{font-size:22px}
-.wa-box img{width:280px;max-width:100%;border-radius:10px;background:#fff;padding:8px;border:1px solid var(--line)}
-.steps{text-align:left;max-width:440px;color:var(--muted);margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
-.risk{background:var(--due-soft);border-radius:8px;padding:10px 12px;font-size:13px;text-align:left;max-width:560px}
+/* lists & table */
+.rows{display:flex;flex-direction:column}
+.lrow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 18px;border:0;border-top:1px solid var(--line);background:none;text-align:left;width:100%}
+.rows .lrow:first-child{border-top:0}
+.lrow:hover{background:var(--raised)}
+.av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;flex:none}
+.who{min-width:0}
+.nm{font-weight:650;color:var(--ink);display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}
+.sub2{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.right{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:2px 9px;border-radius:99px;white-space:nowrap;border:1px solid transparent}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.b-plain::before{display:none}
+.s-new{background:var(--blue-soft);color:var(--blue)} .s-talking{background:var(--violet-soft);color:var(--violet)} .s-interested{background:var(--brand-soft);color:var(--brand)}
+.s-quote{background:var(--amber-soft);color:var(--amber)} .s-won{background:var(--green-soft);color:var(--green)} .s-lost{background:var(--raised);color:var(--faint);border-color:var(--line)}
+.hot{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:var(--red);background:var(--red-soft);border-radius:5px;padding:1px 6px}
+.tag{font-size:10.5px;font-weight:650;color:var(--muted);border:1px dashed var(--line-2);border-radius:5px;padding:0 6px}
+.when{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.when.red{color:var(--red)} .when.amber{color:var(--amber)} .when.brand{color:var(--brand)}
+.sec-h{padding:12px 18px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);font-weight:700;border-top:1px solid var(--line)}
+.rows > .sec-h:first-child{border-top:0}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:700;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--raised);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--raised)}
+td .who{display:flex;align-items:center;gap:10px}
+td .av{width:30px;height:30px;font-size:12px}
+.clip{max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:9px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:6px 11px;font-size:12.5px;font-weight:600;color:var(--muted);border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--brand-soft);color:var(--brand)}
+.empty{padding:44px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty h3{font-size:16px}
+.empty .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center}
 
-/* detail */
-.detail{display:flex;flex-direction:column;gap:14px;padding:16px}
-.d-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
-.d-head h2{font-size:22px;overflow-wrap:anywhere}
-.d-meta{color:var(--muted);font-size:13px;display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
-.acts{display:flex;gap:6px;flex-wrap:wrap}
-a.btn{text-decoration:none;display:inline-flex;align-items:center}
-.ai{background:var(--sunk);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px}
-.ai .sum{font-size:15px}
-.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:13.5px}
-.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
-.sec{display:flex;flex-direction:column;gap:8px}
-.sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-family:var(--f-body);font-weight:600}
-.fu{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
-.fu-now{font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.fields{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
-label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0;flex:1 1 150px}
-label.f input,label.f select,label.f textarea{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 9px;color:var(--fg);font-size:14px;width:100%;min-width:0}
-.quick{display:flex;gap:6px;flex-wrap:wrap}
-.chat{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:6px;max-height:460px;overflow-y:auto}
-.day{align-self:center;font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:1px 9px;margin:6px 0 2px}
-.b{max-width:85%;padding:6px 10px 4px;border-radius:10px;border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
-.b.in{align-self:flex-start;background:var(--in)} .b.out{align-self:flex-end;background:var(--out)}
-.b .t{display:block;text-align:right;font-family:var(--f-mono);font-size:10.5px;color:var(--muted);margin-top:2px}
-.ev{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
-.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--late-soft);border-radius:8px;padding:8px 10px}
-.nosel{padding:40px 20px;text-align:center;color:var(--muted)}
-.close-sheet{display:none}
-@media (max-width:960px){
-  .side-panel{position:fixed;inset:0;z-index:20;border-radius:0;overflow-y:auto;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-  .side-panel.closed{display:none} .close-sheet{display:inline-flex}
+/* kanban */
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:14px;overflow-x:auto;padding-bottom:6px}
+.col{background:var(--raised);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.col-h{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 6px}
+.col-h small{font-family:var(--f-mono);color:var(--muted)}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:4px;box-shadow:var(--shadow);width:100%}
+.kcard:hover{border-color:var(--line-2)}
+.kcard .nm{font-size:13.5px}
+.kcard .sub2{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* WhatsApp */
+.connect{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0}
+.connect > div{padding:28px}
+.connect .left{border-right:1px solid var(--line);display:flex;flex-direction:column;gap:16px}
+.connect .right{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;min-height:360px;background:var(--raised);border-radius:0 var(--r) var(--r) 0}
+.connect h2{font-size:22px}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;counter-reset:s}
+.steps li{display:flex;gap:12px;align-items:flex-start;color:var(--text)}
+.steps li::before{counter-increment:s;content:counter(s);width:24px;height:24px;border-radius:50%;background:var(--brand-soft);color:var(--brand);font-weight:700;font-size:12px;display:grid;place-items:center;flex:none}
+.qr{width:264px;max-width:100%;background:#fff;padding:12px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow-lg)}
+.spinner{width:36px;height:36px;border-radius:50%;border:3px solid var(--line-2);border-top-color:var(--brand);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.note{background:var(--amber-soft);color:var(--text);border:1px solid color-mix(in srgb,var(--amber) 25%,transparent);border-radius:10px;padding:12px 14px;font-size:13px;display:flex;gap:10px}
+.note svg{color:var(--amber);margin-top:2px}
+.okbig{width:64px;height:64px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center}
+.okbig svg{width:30px;height:30px}
+@media (max-width:860px){.connect{grid-template-columns:minmax(0,1fr)}.connect .left{border-right:0;border-bottom:1px solid var(--line)}.connect .right{border-radius:0 0 var(--r) var(--r)}}
+.banner{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:var(--amber-soft);border:1px solid color-mix(in srgb,var(--amber) 25%,transparent);border-radius:var(--r);padding:12px 16px;font-weight:600}
+
+/* slide-over */
+.scrim{position:fixed;inset:0;background:rgba(9,14,26,.45);z-index:30}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);z-index:31;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;border-left:1px solid var(--line)}
+@media (prefers-reduced-motion:no-preference){.drawer{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(24px);opacity:.6}}}
+.d-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.d-head .av{width:44px;height:44px;font-size:16px}
+.d-head h2{font-size:19px;overflow-wrap:anywhere}
+.d-meta{color:var(--muted);font-size:12.5px;display:flex;gap:10px;flex-wrap:wrap;margin-top:2px}
+.d-body{overflow-y:auto;padding:18px 20px 28px;display:flex;flex-direction:column;gap:18px}
+.d-acts{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--raised)}
+.ai{border:1px solid color-mix(in srgb,var(--brand) 25%,var(--line));background:linear-gradient(180deg,var(--brand-soft),transparent 140%);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.ai-h{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--brand);font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+.ai .sum{font-size:14.5px;color:var(--ink)}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 12px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere;color:var(--ink);font-weight:500}
+.blk{display:flex;flex-direction:column;gap:10px}
+.blk h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:700}
+.fu{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.fu-now{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:600}
+.row2{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row2 .field{flex:1 1 160px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chat{background:var(--canvas);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto}
+.day{align-self:center;font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:1px 10px;margin:6px 0 2px;font-weight:600}
+.bub{max-width:82%;padding:7px 11px 5px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;box-shadow:var(--shadow)}
+.bub.in{align-self:flex-start;background:var(--in);border:1px solid var(--line);border-top-left-radius:4px}
+.bub.out{align-self:flex-end;background:var(--out);border-top-right-radius:4px}
+.bub .t{display:block;text-align:right;font-family:var(--f-mono);font-size:10px;color:var(--muted);margin-top:2px}
+.timeline{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--red-soft);border-radius:10px;padding:10px 12px;font-size:13px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--canvas);padding:9px 16px;border-radius:10px;font-weight:600;z-index:50;box-shadow:var(--shadow-lg)}
+
+/* mobile */
+.mobile-nav{display:none}
+@media (max-width:900px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .side{display:none}
+  .topbar{padding:12px 16px}
+  .content{padding:16px 16px 96px}
+  .search{flex-basis:100%;order:3}
+  .mobile-nav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--side);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around}
+  .mobile-nav button{border:0;background:none;color:var(--side-text);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:600;padding:6px 8px;border-radius:8px;position:relative}
+  .mobile-nav button[aria-current="page"]{color:#fff;background:var(--side-2)}
+  .mobile-nav .count{position:absolute;top:0;right:4px;background:var(--red);color:#fff;border-radius:99px;font-size:9.5px;padding:0 5px;font-family:var(--f-mono)}
+  .lrow{padding:11px 14px}
 }
-.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-weight:600;z-index:40}
 </style>
 </head>
 <body>
 
 <div class="login" id="login" hidden>
   <form id="login-form">
-    <h1>Lead Desk</h1>
-    <div style="color:var(--muted)">Apna dashboard password daalein.</div>
-    <input type="password" id="pw" autocomplete="current-password" placeholder="Password" required>
+    <div class="logo"><span class="logo-mark"><svg viewBox="0 0 24 24" class="i"><path d="M4 12h4l3-7 4 14 3-7h2"/></svg></span>Lead Desk</div>
+    <div><h2 style="font-size:20px">Welcome back</h2><div style="color:var(--muted);font-size:13.5px">Sign in to see today's leads and follow-ups.</div></div>
+    <label class="field">Password<input type="password" id="pw" autocomplete="current-password" required></label>
     <div class="err" id="login-err" hidden></div>
-    <button class="btn primary" type="submit">Login</button>
+    <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Sign in</button>
   </form>
 </div>
 
-<div class="wrap" id="app" hidden>
-  <header class="top">
-    <div>
-      <h1>Lead Desk</h1>
-      <div class="sub"><span id="today-label"></span>
-        <button class="chip-status" id="wa-chip" data-tab="whatsapp"><i></i><span id="wa-chip-t">WhatsApp…</span></button>
-        <span class="chip-status" id="ai-chip"><i></i><span id="ai-chip-t">AI</span></span>
-      </div>
+<div class="shell" id="app" hidden>
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"><svg viewBox="0 0 24 24" class="i"><path d="M4 12h4l3-7 4 14 3-7h2"/></svg></span>Lead Desk</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div class="conn"><span class="dot" id="conn-dot"></span><span id="conn-t">WhatsApp</span></div>
+      <div class="conn"><span class="dot" id="ai-dot"></span><span id="ai-t">AI</span></div>
+      <button class="btn sm ghost" id="logout" style="color:var(--side-text);justify-content:flex-start;padding-left:0">Sign out</button>
     </div>
-    <button class="btn small" id="logout">Logout</button>
-  </header>
-
-  <div class="banner" id="wa-banner" hidden><span id="wa-banner-t"></span><button class="btn small primary" data-tab="whatsapp">WhatsApp connect karein</button></div>
-
-  <section class="stats">
-    <button class="stat reply" data-tab="today"><b id="st-reply">–</b><span>Reply pending</span></button>
-    <button class="stat late" data-tab="today"><b id="st-late">–</b><span>Follow-up overdue</span></button>
-    <button class="stat due" data-tab="today"><b id="st-due">–</b><span>Aaj follow-up karna hai</span></button>
-    <button class="stat" data-tab="today"><b id="st-new">–</b><span>Aaj aayi nayi leads</span></button>
-  </section>
-
+  </aside>
   <div class="main">
-    <section class="panel">
-      <div class="tabs" role="tablist">
-        <button class="tab" data-tab="today">Aaj ka kaam<span class="c" id="c-today"></span></button>
-        <button class="tab" data-tab="upcoming">Aage ke follow-ups<span class="c" id="c-up"></span></button>
-        <button class="tab" data-tab="all">Saari leads<span class="c" id="c-all"></span></button>
-        <button class="tab" data-tab="pipeline">Pipeline</button>
-        <button class="tab" data-tab="hidden">Hatayi gayi</button>
-        <button class="tab" data-tab="whatsapp">WhatsApp</button>
-      </div>
-      <div class="filters" id="filters" hidden>
-        <input id="q" type="search" placeholder="Naam, number ya chat mein se search" aria-label="Search">
-        <select id="sf" aria-label="Filter"></select>
-      </div>
-      <div id="area"></div>
-    </section>
-    <aside class="panel side-panel closed" id="side"><div id="detail"></div></aside>
+    <header class="topbar">
+      <div><h1 id="page-title">Overview</h1><div class="sub" id="page-sub"></div></div>
+      <label class="search"><svg viewBox="0 0 24 24" class="i"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search name, number or chat…" aria-label="Search leads"></label>
+    </header>
+    <main class="content" id="content"></main>
   </div>
+  <nav class="mobile-nav" id="mnav"></nav>
 </div>
+<div id="drawer-root"></div>
 <div class="toast" id="toast" hidden></div>
-
 <script>
-const STAGES=[['new','Nayi'],['talking','Baat chal rahi'],['interested','Interested'],['quote','Quote bheja'],['won','Deal pakki'],['lost','Lost']];
-const SL=Object.fromEntries(STAGES);
+const STAGES=[['new','New','#2e90fa'],['talking','In discussion','#7a5af8'],['interested','Interested','#14b8a6'],['quote','Quote sent','#f79009'],['won','Won','#17b26a'],['lost','Lost','#98a2b3']];
+const SL=Object.fromEntries(STAGES.map(s=>[s[0],s[1]]));
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const WD=['Ravivar','Somvar','Mangalvar','Budhvar','Guruvar','Shukravar','Shanivar'];
+const WDS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const REPLY_AFTER=15*60e3;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let leads=[],hiddenLeads=[],waState={status:'unknown'},aiOn=false,tab='today',selId=null,detail=null,q='',sf='all',confirmKey=null;
+const I={
+  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  inbox:'<path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+  board:'<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/>',
+  archive:'<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/>',
+  wa:'<path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-4A8 8 0 1 1 20 12z"/><path d="M9 9.5c.3 1.8 1.7 3.6 3.6 4.4l1.2-1.1 1.7.8-.4 1.6c-3.4.2-6.6-2.9-6.5-6.3l1.6-.4.8 1.7z"/>',
+  reply:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  alert:'<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  spark:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  check:'<path d="m5 12 5 5 9-10"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>',
+  ext:'<path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>',
+  refresh:'<path d="M20 11a8 8 0 0 0-14.8-4M4 4v4h4M4 13a8 8 0 0 0 14.8 4M20 20v-4h-4"/>',
+};
+const ic=(n,cls='i')=>`<svg viewBox="0 0 24 24" class="${cls}">${I[n]}</svg>`;
+let leads=[],archived=[],waState={status:'unknown'},aiOn=false,page='overview',selId=null,detail=null,q='',stageFilter='all',confirmKey=null,connectStarted=0;
 
 /* ---------- time ---------- */
 const pad=n=>String(n).padStart(2,'0');
 function t12(d){let h=d.getHours();const ap=h>=12?'PM':'AM';h=h%12||12;return `${h}:${pad(d.getMinutes())} ${ap}`}
 function dd(a,b){const A=new Date(a.getFullYear(),a.getMonth(),a.getDate()),B=new Date(b.getFullYear(),b.getMonth(),b.getDate());return Math.round((A-B)/864e5)}
-function nice(ms){if(!ms)return '';const d=new Date(ms),n=dd(d,new Date());if(n===0)return 'Aaj '+t12(d);if(n===1)return 'Kal '+t12(d);if(n===-1)return 'Kal (beeta) '+t12(d);return `${d.getDate()} ${MON[d.getMonth()]}, ${t12(d)}`}
-function ago(ms){const m=Math.round((Date.now()-ms)/60e3);if(m<60)return m+' min';const h=Math.round(m/60);if(h<24)return h+' ghante';return Math.round(h/24)+' din'}
+function nice(ms){if(!ms)return '—';const d=new Date(ms),n=dd(d,new Date());if(n===0)return 'Today, '+t12(d);if(n===1)return 'Tomorrow, '+t12(d);if(n===-1)return 'Yesterday, '+t12(d);return `${d.getDate()} ${MON[d.getMonth()]}, ${t12(d)}`}
+function short(ms){if(!ms)return '—';const d=new Date(ms),n=dd(d,new Date());if(n===0)return t12(d);if(n===-1)return 'Yesterday';if(n>-7&&n<0)return WDS[d.getDay()];return `${d.getDate()} ${MON[d.getMonth()]}`}
+function ago(ms){const m=Math.max(1,Math.round((Date.now()-ms)/60e3));if(m<60)return m+'m';const h=Math.round(m/60);if(h<24)return h+'h';return Math.round(h/24)+'d'}
 function localInput(ms){if(!ms)return '';const d=new Date(ms);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
 const isToday=ms=>ms&&dd(new Date(ms),new Date())===0;
 
@@ -214,194 +304,226 @@ const isToday=ms=>ms&&dd(new Date(ms),new Date())===0;
 const closed=l=>l.stage==='won'||l.stage==='lost';
 const notLead=l=>l.is_lead_ai===0;
 const active=l=>!closed(l)&&!notLead(l);
-const replyPending=l=>active(l)&&l.last_from_me===0&&Date.now()-l.last_msg_at>REPLY_AFTER&&Date.now()-l.last_msg_at<14*864e5;
-const fuLate=l=>active(l)&&l.follow_up_at&&l.follow_up_at<Date.now();
-const fuToday=l=>active(l)&&l.follow_up_at&&l.follow_up_at>=Date.now()&&isToday(l.follow_up_at);
-const fuLater=l=>active(l)&&l.follow_up_at&&!isToday(l.follow_up_at)&&l.follow_up_at>Date.now();
+const needsReply=l=>active(l)&&l.last_from_me===0&&Date.now()-l.last_msg_at>REPLY_AFTER&&Date.now()-l.last_msg_at<14*864e5;
+const overdue=l=>active(l)&&l.follow_up_at&&l.follow_up_at<Date.now();
+const dueToday=l=>active(l)&&l.follow_up_at&&l.follow_up_at>=Date.now()&&isToday(l.follow_up_at);
+const upcoming=l=>active(l)&&l.follow_up_at&&!isToday(l.follow_up_at)&&l.follow_up_at>Date.now();
 const newToday=l=>!notLead(l)&&isToday(l.first_msg_at);
-const nameOf=l=>l.display_name||(l.phone?'+'+l.phone:'Unknown');
+const nameOf=l=>l.display_name||(l.phone?'+'+l.phone:'Unknown contact');
+const realLeads=()=>leads.filter(l=>!notLead(l));
+function avatar(l){const n=nameOf(l).replace(/[^\p{L}\p{N} ]/gu,'').trim();const ini=(n.split(/\s+/).map(w=>w[0]).join('').slice(0,2)||'#').toUpperCase();
+  let h=0;for(const c of String(l.id))h=(h*31+c.charCodeAt(0))%360;return `<span class="av" style="background:hsl(${h} 45% 45%)">${esc(ini)}</span>`}
+const stageBadge=s=>`<span class="badge s-${esc(s)}">${esc(SL[s]||s)}</span>`;
+function matchQ(l){const qq=q.trim().toLowerCase();return !qq||[l.display_name,l.phone,l.need,l.summary,l.last_text,l.budget].join(' ').toLowerCase().includes(qq)}
 
 /* ---------- api ---------- */
 async function api(path,opt={}){const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json'},...opt,body:opt.body?JSON.stringify(opt.body):undefined});
-  if(r.status===401){showLogin();throw new Error('login')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Kuch gadbad hui');return j}
+  if(r.status===401){showLogin();throw new Error('login')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong');return j}
 function toast(t){const e=$('toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2400)}
 
-/* ---------- render ---------- */
+/* ---------- shell ---------- */
+const PAGES=[
+  ['overview','Overview','home'],['attention','Needs attention','inbox'],['followups','Follow-ups','cal'],['leads','All leads','users'],['pipeline','Pipeline','board'],
+  ['archived','Archived','archive'],['whatsapp','WhatsApp','wa']];
+function counts(){return {attention:leads.filter(l=>needsReply(l)||overdue(l)||dueToday(l)).length,followups:leads.filter(upcoming).length,leads:realLeads().length}}
+function renderNav(){
+  const c=counts();
+  const item=([k,lab,icn])=>`<button data-page="${k}" ${page===k?'aria-current="page"':''}>${ic(icn)}<span>${lab}</span>${c[k]?`<span class="count ${k==='attention'?'hot':''}">${c[k]}</span>`:''}</button>`;
+  $('nav').innerHTML=`<div class="nav-h">Workspace</div>${PAGES.slice(0,5).map(item).join('')}<div class="nav-h">Manage</div>${PAGES.slice(5).map(item).join('')}`;
+  $('mnav').innerHTML=[PAGES[0],PAGES[1],PAGES[3],PAGES[4],PAGES[6]].map(([k,lab,icn])=>`<button data-page="${k}" ${page===k?'aria-current="page"':''}>${ic(icn)}<span>${lab.split(' ')[0]}</span>${k==='attention'&&c.attention?`<span class="count">${c.attention}</span>`:''}</button>`).join('');
+  const s=waState.status;$('conn-dot').className='dot '+(s==='connected'?'ok':['qr','connecting','reconnecting'].includes(s)?'warn':'bad');
+  $('conn-t').textContent=s==='connected'?`WhatsApp · +${waState.me||''}`:s==='qr'?'Waiting for QR scan':['connecting','reconnecting'].includes(s)?'Connecting…':'WhatsApp not linked';
+  $('ai-dot').className='dot '+(aiOn?'ok':'bad');$('ai-t').textContent=aiOn?'AI insights on':'AI insights off';
+}
 function render(){
-  const reply=leads.filter(replyPending),late=leads.filter(l=>fuLate(l)&&!replyPending(l)),due=leads.filter(l=>fuToday(l)&&!replyPending(l)),nt=leads.filter(newToday),up=leads.filter(fuLater);
-  $('st-reply').textContent=reply.length;$('st-late').textContent=late.length;$('st-due').textContent=due.length;$('st-new').textContent=nt.length;
-  $('c-today').textContent=(reply.length+late.length+due.length)||'';$('c-up').textContent=up.length||'';$('c-all').textContent=leads.filter(l=>!notLead(l)).length||'';
-  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
-  $('filters').hidden=tab!=='all';
-  renderWaChip();
-  const area=$('area');let h='';
-  if(tab==='whatsapp'){area.innerHTML=waView();renderDetail();return}
-  if(!leads.length&&tab!=='hidden'){area.innerHTML=`<div class="empty"><h3>Abhi koi lead nahi hai</h3><div>${waState.status==='connected'?'WhatsApp connected hai. Purani chats sync ho rahi hain, aur naye messages aate hi leads yahan apne aap dikhengi.':'Pehle WhatsApp tab mein jaake apna number link karein. Uske baad har chat apne aap yahan aa jayegi.'}</div>${waState.status!=='connected'?'<button class="btn primary" data-tab="whatsapp">WhatsApp connect karein</button>':''}</div>`;renderDetail();return}
-  if(tab==='today'){
-    const ntOnly=nt.filter(l=>!reply.includes(l)&&!late.includes(l)&&!due.includes(l));
-    if(reply.length)h+=group('Client ka message aaya, aapne reply nahi kiya',reply.sort((a,b)=>a.last_msg_at-b.last_msg_at),'reply');
-    if(late.length)h+=group('Follow-up overdue',late.sort((a,b)=>a.follow_up_at-b.follow_up_at),'late');
-    if(due.length)h+=group('Aaj follow-up karna hai',due.sort((a,b)=>a.follow_up_at-b.follow_up_at),'due');
-    if(ntOnly.length)h+=group('Aaj aayi nayi leads',ntOnly,'new');
-    if(!h)h=`<div class="empty"><h3>Aaj ka sab kaam ho gaya</h3><div>Na koi reply pending hai, na koi follow-up baaki.</div></div>`;
-  }else if(tab==='upcoming'){
-    const by={};up.sort((a,b)=>a.follow_up_at-b.follow_up_at).forEach(l=>{const d=new Date(l.follow_up_at);const k=d.toDateString();(by[k]=by[k]||{d,ls:[]}).ls.push(l)});
-    for(const k in by){const {d,ls}=by[k];h+=group(dd(d,new Date())===1?'Kal':`${d.getDate()} ${MON[d.getMonth()]} · ${WD[d.getDay()]}`,ls,'up')}
-    if(!h)h=`<div class="empty"><h3>Aage koi follow-up set nahi hai</h3></div>`;
-  }else if(tab==='all'){
-    const qq=q.trim().toLowerCase();
-    const rows=leads.filter(l=>{if(sf==='notlead')return notLead(l);if(notLead(l))return false;if(sf!=='all'&&l.stage!==sf)return false;
-      return !qq||[l.display_name,l.phone,l.need,l.summary,l.last_text].join(' ').toLowerCase().includes(qq)});
-    h=rows.length?`<div class="list">${rows.map(l=>row(l,'all')).join('')}</div>`:`<div class="empty"><h3>Kuch nahi mila</h3></div>`;
-  }else if(tab==='pipeline'){
-    h='<div class="pipe">'+STAGES.map(([k,lab])=>{const ls=leads.filter(l=>l.stage===k&&!notLead(l));
-      return `<div class="col"><h4><span class="pill s-${k}">${lab}</span><small>${ls.length}</small></h4>${ls.slice(0,60).map(l=>`<button data-open="${esc(l.id)}">${esc(nameOf(l))}</button>`).join('')||'<small>—</small>'}${ls.length>60?`<small>+${ls.length-60} aur</small>`:''}</div>`}).join('')+'</div>';
-  }else if(tab==='hidden'){
-    h=hiddenLeads.length?`<div class="group-h">Inhe aapne “Lead nahi hai” mark kiya</div><div class="list">${hiddenLeads.map(l=>row(l,'all')).join('')}</div>`:`<div class="empty"><h3>Koi chat hatayi nahi gayi</h3><div>Personal ya faltu chats ko lead ke andar “Lead nahi hai” dabake yahan bhej sakte hain.</div></div>`;
-  }
-  area.innerHTML=h;renderDetail();
+  renderNav();
+  const meta={overview:['Overview',todayLabel()],attention:['Needs attention','Unanswered chats and follow-ups due'],followups:['Follow-ups','Scheduled calls and messages'],leads:['All leads',`${realLeads().length} contacts from WhatsApp`],pipeline:['Pipeline','Leads by stage'],archived:['Archived','Chats marked as not a lead'],whatsapp:['WhatsApp','Connect the number your leads message']};
+  $('page-title').textContent=meta[page][0];$('page-sub').textContent=meta[page][1];
+  const v={overview:vOverview,attention:vAttention,followups:vFollowups,leads:vLeads,pipeline:vPipeline,archived:vArchived,whatsapp:vWhatsApp}[page]();
+  $('content').innerHTML=(page!=='whatsapp'&&!['connected','reconnecting','connecting','qr'].includes(waState.status)?`<div class="banner"><span style="display:flex;gap:10px;align-items:center">${ic('alert')} WhatsApp is not linked, so new messages are not being tracked.</span><button class="btn sm primary" data-page="whatsapp">Connect WhatsApp</button></div>`:'')+v;
 }
-function group(t,ls,k){return `<div class="group-h">${esc(t)} · ${ls.length}</div><div class="list">${ls.map(l=>row(l,k)).join('')}</div>`}
-function row(l,k){
-  let w='',cls='';
-  if(replyPending(l)){w=`<span class="when reply">${ago(l.last_msg_at)} se reply nahi</span>`;cls='k-reply'}
-  else if(fuLate(l)){w=`<span class="when late">${l.follow_type==='call'?'Call':'Msg'} · ${nice(l.follow_up_at)}</span>`;cls='k-late'}
-  else if(fuToday(l)){w=`<span class="when due">${l.follow_type==='call'?'Call':'Msg'} · ${t12(new Date(l.follow_up_at))}</span>`;cls='k-due'}
-  else if(fuLater(l))w=`<span class="when">${l.follow_type==='call'?'Call':'Msg'} · ${nice(l.follow_up_at)}</span>`;
-  else w=`<span class="when">${nice(l.last_msg_at)}</span>`;
-  const l2=l.next_action&&!closed(l)?`<span class="na">${esc(l.next_action)}</span>`:esc((l.last_from_me?'Aap: ':'')+(l.last_text||''));
-  return `<button class="row ${cls}" data-open="${esc(l.id)}" aria-current="${l.id===selId}"><span class="stripe"></span>
-  <span class="who"><span class="nm">${esc(nameOf(l))}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}${notLead(l)?'<span class="tag">AI: lead nahi</span>':''}</span>
-  <div class="line2">${l.need?esc(l.need)+' · ':''}${l2}</div></span>
-  <span class="side"><span class="pill s-${esc(l.stage)}">${esc(SL[l.stage]||l.stage)}</span>${w}</span></button>`}
+function todayLabel(){const d=new Date();return `${WDS[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`}
 
-/* ---------- WhatsApp view ---------- */
-function renderWaChip(){
-  const c=$('wa-chip'),s=waState.status;
-  c.className='chip-status '+(s==='connected'?'ok':s==='qr'||s==='connecting'||s==='reconnecting'?'warn':'bad');
-  $('wa-chip-t').textContent=s==='connected'?'WhatsApp connected':s==='qr'?'QR scan baaki':s==='connecting'||s==='reconnecting'?'Connect ho raha hai…':'WhatsApp connected nahi';
-  $('ai-chip').className='chip-status '+(aiOn?'ok':'bad');$('ai-chip-t').textContent=aiOn?'AI on':'AI off';
-  const b=$('wa-banner');const show=['disconnected','logged_out','error'].includes(s)&&tab!=='whatsapp';
-  b.hidden=!show;if(show)$('wa-banner-t').textContent=waState.error||'WhatsApp abhi linked nahi hai — naye messages track nahi ho rahe.';
-}
-function waView(){
+/* ---------- views ---------- */
+function kpi(label,val,icn,tone,foot,go){return `<button class="kpi" data-page="${go}"><span class="top"><span class="ic ${tone}">${ic(icn)}</span>${label}</span><b>${val}</b><span class="foot">${foot}</span></button>`}
+function emptyState(icn,title,text,btn=''){return `<div class="empty"><span class="ic t-brand">${ic(icn)}</span><h3>${title}</h3><div>${text}</div>${btn}</div>`}
+function noLeadsYet(){return waState.status==='connected'?emptyState('wa','Syncing your chats…','WhatsApp is linked. Recent chats are importing and new messages will show up here automatically.'):emptyState('wa','No leads yet','Link your WhatsApp Business number and every chat becomes a lead automatically.','<button class="btn primary" data-page="whatsapp">Connect WhatsApp</button>')}
+function lrow(l){
+  let w='';
+  if(needsReply(l))w=`<span class="when brand">Waiting ${ago(l.last_msg_at)}</span>`;
+  else if(overdue(l))w=`<span class="when red">${l.follow_type==='call'?'Call':'Message'} · overdue</span>`;
+  else if(dueToday(l))w=`<span class="when amber">${l.follow_type==='call'?'Call':'Message'} · ${t12(new Date(l.follow_up_at))}</span>`;
+  else if(upcoming(l))w=`<span class="when">${l.follow_type==='call'?'Call':'Message'} · ${nice(l.follow_up_at)}</span>`;
+  else w=`<span class="when">${short(l.last_msg_at)}</span>`;
+  const sub=l.next_action&&!closed(l)?esc(l.next_action):esc((l.last_from_me?'You: ':'')+(l.last_text||''));
+  return `<button class="lrow" data-open="${esc(l.id)}">${avatar(l)}<span class="who"><span class="nm">${esc(nameOf(l))}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}${notLead(l)?'<span class="tag">AI: not a lead</span>':''}</span><div class="sub2">${l.need?esc(l.need)+' · ':''}${sub}</div></span><span class="right">${stageBadge(l.stage)}${w}</span></button>`}
+function vOverview(){
+  const L=leads.filter(matchQ);
+  const reply=L.filter(needsReply),od=L.filter(l=>overdue(l)&&!needsReply(l)),due=L.filter(l=>dueToday(l)&&!needsReply(l)),nt=L.filter(newToday);
+  const open=realLeads().filter(l=>!closed(l)).length,won=realLeads().filter(l=>l.stage==='won').length;
+  const att=[...reply,...od,...due].slice(0,8);
+  return `<section class="kpis">
+    ${kpi('Needs a reply',reply.length,'reply','t-brand','Client messaged, no answer yet','attention')}
+    ${kpi('Overdue follow-ups',od.length,'alert','t-red','Past the planned time','attention')}
+    ${kpi('Due today',due.length,'clock','t-amber','Calls & messages for today','attention')}
+    ${kpi('New leads today',nt.length,'spark','t-green',`${open} open · ${won} won`,'leads')}
+  </section>
+  <section class="grid2">
+    <div class="card"><div class="card-h"><h3>Needs attention</h3><button class="btn sm ghost" data-page="attention">View all</button></div>
+      ${att.length?`<div class="rows">${att.map(lrow).join('')}</div>`:leads.length?emptyState('check','You are all caught up','No unanswered chats and no follow-ups due right now.'):noLeadsYet()}</div>
+    <div class="stack">
+      <div class="card"><div class="card-h"><h3>New leads</h3><span class="hint">Last 14 days</span></div><div class="chart">${chart14()}</div></div>
+      <div class="card"><div class="card-h"><h3>Pipeline</h3><span class="hint">${realLeads().length} leads</span></div><div class="chart">${stageMix()}</div></div>
+    </div>
+  </section>`}
+function chart14(){
+  const days=[];const now=new Date();for(let i=13;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);days.push({d,n:0})}
+  for(const l of realLeads()){if(!l.first_msg_at)continue;const k=dd(new Date(l.first_msg_at),now);if(k<=0&&k>-14)days[13+k].n++}
+  const max=Math.max(4,...days.map(x=>x.n));const step=Math.ceil(max/4);const top=step*4;
+  const W=560,H=190,L=26,B=24,T=10,bw=(W-L)/14;
+  let g='';for(let i=0;i<=4;i++){const v=step*i,y=H-B-(H-B-T)*v/top;g+=`<line class="grid" x1="${L}" x2="${W}" y1="${y}" y2="${y}"/><text class="lbl" x="${L-6}" y="${y+3}" text-anchor="end">${v}</text>`}
+  const bars=days.map((x,i)=>{const h=(H-B-T)*x.n/top,xx=L+i*bw+bw*.18,w=bw*.64,y=H-B-h;return `<rect class="bar ${i===13?'today':''}" x="${xx}" y="${y}" width="${w}" height="${Math.max(h,0)}" rx="3"><title>${x.d.getDate()} ${MON[x.d.getMonth()]}: ${x.n}</title></rect>${x.n?`<text class="val" x="${xx+w/2}" y="${y-4}" text-anchor="middle">${x.n}</text>`:''}${i%2===1||i===13?`<text class="lbl" x="${xx+w/2}" y="${H-8}" text-anchor="middle">${i===13?'Today':x.d.getDate()+' '+MON[x.d.getMonth()]}</text>`:''}`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="New leads per day, last 14 days">${g}${bars}</svg>`}
+function stageMix(){
+  const R=realLeads();const tot=R.length||1;
+  const seg=STAGES.map(([k,lab,c])=>{const n=R.filter(l=>l.stage===k).length;return {k,lab,c,n}});
+  return `<div class="stagebar">${seg.filter(s=>s.n).map(s=>`<span style="width:${s.n/tot*100}%;background:${s.c}" title="${s.lab}: ${s.n}"></span>`).join('')}</div>
+  <div class="legend">${seg.map(s=>`<div><i style="background:${s.c}"></i>${s.lab}<b>${s.n}</b></div>`).join('')}</div>`}
+function vAttention(){
+  const L=leads.filter(matchQ);
+  const reply=L.filter(needsReply).sort((a,b)=>a.last_msg_at-b.last_msg_at),od=L.filter(l=>overdue(l)&&!needsReply(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at),due=L.filter(l=>dueToday(l)&&!needsReply(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at),nt=L.filter(l=>newToday(l)&&!reply.includes(l)&&!od.includes(l)&&!due.includes(l));
+  let h='';
+  if(reply.length)h+=`<div class="sec-h">Waiting for your reply · ${reply.length}</div>${reply.map(lrow).join('')}`;
+  if(od.length)h+=`<div class="sec-h">Overdue follow-ups · ${od.length}</div>${od.map(lrow).join('')}`;
+  if(due.length)h+=`<div class="sec-h">Due later today · ${due.length}</div>${due.map(lrow).join('')}`;
+  if(nt.length)h+=`<div class="sec-h">New today · ${nt.length}</div>${nt.map(lrow).join('')}`;
+  return `<div class="card">${h?`<div class="rows">${h}</div>`:leads.length?emptyState('check','You are all caught up','Nothing needs your attention right now.'):noLeadsYet()}</div>`}
+function vFollowups(){
+  const up=leads.filter(l=>upcoming(l)&&matchQ(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at);
+  const by=new Map();for(const l of up){const d=new Date(l.follow_up_at);const k=d.toDateString();if(!by.has(k))by.set(k,{d,ls:[]});by.get(k).ls.push(l)}
+  let h='';for(const {d,ls} of by.values()){const n=dd(d,new Date());h+=`<div class="sec-h">${n===1?'Tomorrow':`${WDS[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]}`} · ${ls.length}</div>${ls.map(lrow).join('')}`}
+  return `<div class="card">${h?`<div class="rows">${h}</div>`:emptyState('cal','No upcoming follow-ups','Follow-ups set by AI or by you will be listed here by day.')}</div>`}
+function vLeads(){
+  const rows=leads.filter(l=>{if(stageFilter==='notlead')return notLead(l);if(notLead(l))return false;if(stageFilter!=='all'&&l.stage!==stageFilter)return false;return matchQ(l)});
+  const segs=[['all','All'],...STAGES.map(s=>[s[0],s[1]]),['notlead','AI: not a lead']];
+  return `<div class="card"><div class="toolbar"><div class="seg">${segs.map(([k,lab])=>`<button data-stage="${k}" aria-pressed="${stageFilter===k}">${lab}</button>`).join('')}</div></div>
+  ${rows.length?`<div class="tbl-wrap"><table><thead><tr><th>Contact</th><th>Stage</th><th>Requirement</th><th>Budget</th><th>Next follow-up</th><th>Last message</th></tr></thead><tbody>
+  ${rows.map(l=>`<tr class="click" data-open="${esc(l.id)}"><td><div class="who">${avatar(l)}<div style="min-width:0"><div class="nm">${esc(nameOf(l))}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}</div><div class="sub2 mono">${l.phone?'+'+esc(l.phone):''}</div></div></div></td>
+  <td>${stageBadge(l.stage)}</td><td><div class="clip">${esc(l.need||'—')}</div></td><td>${esc(l.budget||'—')}</td>
+  <td><span class="when ${overdue(l)?'red':dueToday(l)?'amber':''}">${l.follow_up_at&&active(l)?(l.follow_type==='call'?'Call · ':'Msg · ')+nice(l.follow_up_at):'—'}</span></td>
+  <td><div class="clip">${esc((l.last_from_me?'You: ':'')+(l.last_text||''))}</div><div class="sub2">${short(l.last_msg_at)}</div></td></tr>`).join('')}
+  </tbody></table></div>`:leads.length?emptyState('users','No leads match','Try another stage or search.'):noLeadsYet()}</div>`}
+function vPipeline(){
+  const L=realLeads().filter(matchQ);
+  return `<div class="board">${STAGES.map(([k,lab,c])=>{const ls=L.filter(l=>l.stage===k);
+    return `<div class="col"><div class="col-h"><span class="badge s-${k}">${lab}</span><small>${ls.length}</small></div>
+    ${ls.slice(0,80).map(l=>`<button class="kcard" data-open="${esc(l.id)}"><span class="nm">${esc(nameOf(l))}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}</span>${l.need?`<span class="sub2">${esc(l.need)}</span>`:''}<span class="when ${overdue(l)?'red':dueToday(l)?'amber':''}">${l.budget?esc(l.budget)+' · ':''}${l.follow_up_at&&active(l)?nice(l.follow_up_at):short(l.last_msg_at)}</span></button>`).join('')||'<div class="sub2" style="padding:6px 4px">No leads</div>'}
+    ${ls.length>80?`<div class="sub2" style="padding:4px">+${ls.length-80} more</div>`:''}</div>`}).join('')}</div>`}
+function vArchived(){return `<div class="card">${archived.length?`<div class="rows">${archived.filter(matchQ).map(lrow).join('')}</div>`:emptyState('archive','Nothing archived','Open a chat and choose “Not a lead” to move personal or spam chats here.')}</div>`}
+function vWhatsApp(){
   const s=waState.status;
-  const risk=`<div class="risk">Yeh WhatsApp ka unofficial tarika hai (linked device, jaise WhatsApp Web). Number ban hone ka thoda risk rehta hai. Yeh system sirf messages padhta hai — kabhi kisi ko message nahi bhejta, blue tick nahi lagata. Phone ko kam se kam 14 din mein ek baar internet pe aana chahiye, warna link apne aap hat jayega.</div>`;
-  if(s==='connected')return `<div class="wa-box"><h2>Connected — <span class="mono">+${esc(waState.me||'')}</span></h2>
-    <div style="color:var(--muted);max-width:520px">Is number pe aane wala har 1:1 message apne aap lead ban jata hai aur chat yahan save hoti hai. Aap phone se pehle jaise reply karte rahein — aapke reply bhi yahan dikhenge.</div>
-    ${waState.historyProgress!=null&&waState.historyProgress<100?`<div class="mono" style="color:var(--muted)">Purani chats sync: ${waState.historyProgress}%</div>`:''}
-    ${confirmKey==='wa'?`<div class="confirm"><span>Link hata dein? Purani leads rahengi, naye messages track nahi honge.</span><button class="btn small solid-danger" id="wa-off-yes">Haan, disconnect</button><button class="btn small" id="wa-off-no">Rehne dein</button></div>`:`<button class="btn danger" id="wa-off">Disconnect / dobara link</button>`}${risk}</div>`;
-  if(s==='qr'&&waState.qr)return `<div class="wa-box"><h2>Phone se QR scan karein</h2><img src="${waState.qr}" alt="WhatsApp link QR code">
-    <ol class="steps"><li>Phone pe <b>WhatsApp Business</b> kholein</li><li>Upar ⋮ menu (iPhone: Settings) → <b>Linked devices</b></li><li><b>Link a device</b> dabake yeh QR scan karein</li></ol>
-    <div style="color:var(--muted);font-size:12.5px">QR har ~20 second mein badalta hai, page apne aap update hota rahega.</div>${risk}</div>`;
-  if(s==='connecting'||s==='reconnecting'||(s==='qr'&&!waState.qr))return `<div class="wa-box"><h2>Connect ho raha hai…</h2><div style="color:var(--muted)">Kuch second rukiye.</div></div>`;
-  return `<div class="wa-box"><h2>Apna WhatsApp link karein</h2>
-    <div style="color:var(--muted);max-width:520px">Link karte hi pichhli chats sync hongi aur har naya message apne aap lead ban jayega. AI har chat padhke batayega ki client ko kya chahiye aur kab follow-up karna hai.</div>
-    ${waState.error?`<div class="err">${esc(waState.error)}</div>`:''}<button class="btn primary" id="wa-on">QR code dikhayein</button>${risk}</div>`;
-}
+  const note=`<div class="note">${ic('alert')}<div>This uses WhatsApp's linked-device method (like WhatsApp Web), which is unofficial, so there is a small risk of the number being restricted. Lead Desk only <b>reads</b> messages: it never sends anything and never marks chats as read. Open WhatsApp on your phone at least once every 14 days to keep the link active.</div></div>`;
+  const left=`<div class="left"><div><h2>${s==='connected'?'WhatsApp is connected':'Connect your WhatsApp'}</h2><div style="color:var(--muted);margin-top:4px">${s==='connected'?'New messages to this number turn into leads automatically. Keep replying from your phone as usual.':'Link your WhatsApp Business number once. Your recent chats import, and every new message becomes a lead with AI insights.'}</div></div>
+    <ol class="steps"><li><span>Open <b>WhatsApp Business</b> on your phone</span></li><li><span>Tap <b>⋮ Menu</b> (Android) or <b>Settings</b> (iPhone), then <b>Linked devices</b></span></li><li><span>Tap <b>Link a device</b> and scan the QR code shown here</span></li></ol>${note}</div>`;
+  let right;
+  if(s==='connected')right=`<span class="okbig">${ic('check')}</span><h3>Connected</h3><div class="mono" style="font-size:16px">+${esc(waState.me||'')}</div>
+    ${waState.historyProgress!=null&&waState.historyProgress<100?`<div style="color:var(--muted)">Importing recent chats… ${waState.historyProgress}%</div>`:`<div style="color:var(--muted)">${realLeads().length} leads tracked</div>`}
+    ${confirmKey==='wa'?`<div class="confirm"><span>Unlink this number? Existing leads stay; new messages stop syncing.</span><button class="btn sm solid-danger" id="wa-off-yes">Unlink</button><button class="btn sm" id="wa-off-no">Cancel</button></div>`:`<button class="btn danger" id="wa-off">Unlink number</button>`}`;
+  else if(s==='qr'&&waState.qr)right=`<img class="qr" src="${waState.qr}" alt="QR code to link WhatsApp"><div style="color:var(--muted);font-size:12.5px">The code refreshes every ~20 seconds. This page updates on its own.</div><button class="btn sm ghost" id="wa-on">${ic('refresh')} Generate a new code</button>`;
+  else if(['connecting','reconnecting'].includes(s)||(s==='qr'&&!waState.qr))right=`<div class="spinner"></div><h3>${s==='reconnecting'?'Reconnecting…':'Generating QR code…'}</h3><div style="color:var(--muted)">This usually takes a few seconds.</div>${Date.now()-connectStarted>12e3?`<button class="btn sm" id="wa-on">${ic('refresh')} Try again</button>`:''}`;
+  else right=`<span class="okbig" style="background:var(--brand-soft);color:var(--brand)">${ic('wa')}</span><h3>Not connected</h3>${waState.error?`<div class="err" style="max-width:320px">${esc(waState.error)}</div>`:'<div style="color:var(--muted)">Generate a QR code and scan it with your phone.</div>'}<button class="btn primary" id="wa-on">${ic('wa')} Generate QR code</button>`;
+  return `<div class="card connect">${left}<div class="right">${right}</div></div>`}
 
-/* ---------- detail ---------- */
-async function openLead(id){selId=id;confirmKey=null;render();await loadDetail()}
-async function loadDetail(){if(!selId){detail=null;return renderDetail()}
-  try{detail=await api('/api/leads/'+encodeURIComponent(selId))}catch(e){detail=null;selId=null}renderDetail();
-  const c=document.querySelector('.chat');if(c)c.scrollTop=c.scrollHeight}
-function renderDetail(){
-  const side=$('side'),box=$('detail');
-  if(!selId||!detail){side.classList.add('closed');box.innerHTML=`<div class="nosel">Kisi lead pe click karein — AI summary, poori chat aur next follow-up yahan dikhega.</div>`;return}
-  side.classList.remove('closed');
-  const a=document.activeElement;if(a&&box.contains(a)&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName))return; // don't wipe what you're typing
+/* ---------- drawer ---------- */
+async function openLead(id){selId=id;confirmKey=null;detail=null;renderDrawer();await loadDetail()}
+async function loadDetail(){if(!selId)return;try{detail=await api('/api/leads/'+encodeURIComponent(selId))}catch(e){if(e.message!=='login')toast(e.message);selId=null;detail=null}renderDrawer();const c=document.querySelector('.chat');if(c)c.scrollTop=c.scrollHeight}
+function closeDrawer(){selId=null;detail=null;confirmKey=null;$('drawer-root').innerHTML=''}
+function renderDrawer(){
+  const root=$('drawer-root');if(!selId){root.innerHTML='';return}
+  const a=document.activeElement;if(a&&root.contains(a)&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName))return;
+  if(!detail){root.innerHTML=`<div class="scrim" data-close></div><aside class="drawer"><div class="empty"><div class="spinner"></div></div></aside>`;return}
   const l=detail.lead;const wa=l.phone?'https://wa.me/'+l.phone:'';
   let lastDay='',chat='';
   for(const m of detail.messages){const d=new Date(m.ts);const k=d.toDateString();
-    if(k!==lastDay){lastDay=k;const n=dd(d,new Date());chat+=`<div class="day">${n===0?'Aaj':n===-1?'Kal':`${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`}</div>`}
-    chat+=`<div class="b ${m.from_me?'out':'in'}">${esc(m.text)}<span class="t">${t12(d)}</span></div>`}
-  const fuTxt=!l.follow_up_at?(closed(l)?'Lead closed hai':'Koi follow-up set nahi'):`<span class="pill" style="background:${fuLate(l)?'var(--late-soft)':fuToday(l)?'var(--due-soft)':'var(--sunk)'};color:${fuLate(l)?'var(--late)':fuToday(l)?'var(--due)':'var(--fg)'}">${l.follow_type==='call'?'Call karna hai':'Message karna hai'}</span><span class="mono">${nice(l.follow_up_at)}</span><span style="color:var(--muted);font-size:12px">(${l.follow_source==='manual'?'aapne set kiya':'AI ne set kiya'})</span>`;
-  box.innerHTML=`<div class="detail">
-  <div class="d-head"><div style="min-width:0"><h2>${esc(nameOf(l))}</h2>
-    <div class="d-meta">${l.phone?`<span class="mono">+${esc(l.phone)}</span>`:'<span>Number chhupa hua</span>'}${l.wa_name&&l.name&&l.wa_name!==l.name?`<span>WhatsApp: ${esc(l.wa_name)}</span>`:''}<span>Pehla message: ${nice(l.first_msg_at)}</span></div></div>
-    <div class="acts">${wa?`<a class="btn small" href="${wa}" target="_blank" rel="noopener">WhatsApp kholein</a>`:''}${l.phone?`<button class="btn small" id="d-copy">Number copy</button>`:''}<button class="btn small close-sheet" id="d-close">Band karein</button></div></div>
-
-  ${replyPending(l)?`<div class="banner" style="background:var(--accent-soft)"><span><b>Reply pending:</b> client ne ${ago(l.last_msg_at)} pehle message kiya, aapne jawab nahi diya.</span></div>`:''}
-
-  <div class="ai">${l.summary?`<div class="sum">${esc(l.summary)}</div>`:`<div style="color:var(--muted)">${aiOn?(l.ai_dirty?'AI is chat ko padh raha hai…':'AI summary abhi nahi bani.'):'AI band hai — summary ke liye server pe AI key set karni hogi.'}</div>`}
-    <dl class="kv">${l.need?`<dt>Requirement</dt><dd>${esc(l.need)}</dd>`:''}${l.budget?`<dt>Budget</dt><dd>${esc(l.budget)}</dd>`:''}${l.next_action&&!closed(l)?`<dt>Agla kaam</dt><dd><b>${esc(l.next_action)}</b></dd>`:''}${l.priority?`<dt>Priority</dt><dd>${l.priority==='hot'?'<span class="hot">HOT</span>':esc(l.priority)}</dd>`:''}</dl>
-    ${aiOn?`<div><button class="btn small" id="d-re">AI se dobara padhwaayein</button></div>`:''}</div>
-
-  <div class="sec"><h3>Next follow-up</h3><div class="fu"><div class="fu-now">${fuTxt}</div>
-    <div class="fields"><label class="f">Kab<input type="datetime-local" id="d-fu" value="${localInput(l.follow_up_at)}"></label>
-      <label class="f" style="flex:0 1 130px">Kya karna hai<select id="d-ft"><option value="message" ${l.follow_type!=='call'?'selected':''}>Message</option><option value="call" ${l.follow_type==='call'?'selected':''}>Call</option></select></label></div>
-    <div class="quick"><button class="btn small" data-q="2h">+2 ghante</button><button class="btn small" data-q="1">Kal 11 AM</button><button class="btn small" data-q="3">3 din baad</button><button class="btn small" data-q="7">Agle hafte</button></div>
-    <div class="quick"><button class="btn small primary" id="d-fu-save">Follow-up save karein</button>${l.follow_up_at?`<button class="btn small" id="d-done">Ho gaya ✓</button>`:''}</div></div></div>
-
-  <div class="sec"><h3>Lead details</h3><div class="fields">
-    <label class="f">Stage<select id="d-st">${STAGES.map(([k,lab])=>`<option value="${k}" ${l.stage===k?'selected':''}>${lab}</option>`).join('')}</select></label>
-    <label class="f">Naam<input id="d-name" value="${esc(l.name||'')}" placeholder="${esc(l.wa_name||'Client ka naam')}"></label>
-    <label class="f" style="flex-basis:100%">Aapka private note<textarea id="d-note" rows="2" placeholder="Jo baat chat mein nahi hai — call pe kya hua, etc.">${esc(l.note||'')}</textarea></label></div>
-    <div class="quick"><button class="btn small" id="d-save">Details save karein</button></div></div>
-
-  <div class="sec"><h3>Chat (${l.msg_count} messages)</h3><div class="chat">${chat||'<div style="color:var(--muted)">Koi message nahi</div>'}</div></div>
-
-  ${detail.events.length?`<div class="sec"><h3>History</h3><div class="ev">${detail.events.slice(0,15).map(e=>`<div><span class="mono">${nice(e.ts)}</span> · ${esc(e.text)}</div>`).join('')}</div></div>`:''}
-
-  <div>${l.hidden?`<button class="btn small" id="d-unhide">Wapas leads mein laayein</button>`:confirmKey==='hide'?`<div class="confirm"><span>Yeh chat leads list se hat jayegi (data delete nahi hoga).</span><button class="btn small solid-danger" id="d-hide-yes">Haan, hatao</button><button class="btn small" id="d-hide-no">Rehne dein</button></div>`:`<button class="btn small danger" id="d-hide">Lead nahi hai (personal / faltu)</button>`}</div>
-  </div>`;
+    if(k!==lastDay){lastDay=k;const n=dd(d,new Date());chat+=`<div class="day">${n===0?'Today':n===-1?'Yesterday':`${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`}</div>`}
+    chat+=`<div class="bub ${m.from_me?'out':'in'}">${esc(m.text)}<span class="t">${t12(d)}</span></div>`}
+  const fuNow=!l.follow_up_at?`<span style="color:var(--muted);font-weight:500">${closed(l)?'This lead is closed.':'No follow-up scheduled.'}</span>`:`<span class="badge b-plain ${overdue(l)?'t-red':dueToday(l)?'t-amber':'t-brand'}">${l.follow_type==='call'?ic('phone'):ic('reply')} ${l.follow_type==='call'?'Call':'Message'}</span><span>${nice(l.follow_up_at)}</span><span style="color:var(--faint);font-size:12px;font-weight:500">${l.follow_source==='manual'?'set by you':'suggested by AI'}</span>`;
+  root.innerHTML=`<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-label="Lead details">
+  <div class="d-head">${avatar(l)}<div style="min-width:0;flex:1"><h2>${esc(nameOf(l))}</h2><div class="d-meta">${l.phone?`<span class="mono">+${esc(l.phone)}</span>`:'<span>Number hidden by WhatsApp</span>'}<span>First message ${nice(l.first_msg_at)}</span></div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${stageBadge(l.stage)}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}</div></div><button class="btn sm ghost" data-close aria-label="Close">${ic('x')}</button></div>
+  <div class="d-acts">${wa?`<a class="btn sm" href="${wa}" target="_blank" rel="noopener">${ic('ext')} Open in WhatsApp</a>`:''}${l.phone?`<button class="btn sm" id="d-copy">${ic('copy')} Copy number</button>`:''}${aiOn?`<button class="btn sm" id="d-re">${ic('spark')} Re-analyse</button>`:''}</div>
+  <div class="d-body">
+    ${needsReply(l)?`<div class="banner" style="background:var(--brand-soft);border-color:transparent;justify-content:flex-start">${ic('reply')} This client has been waiting ${ago(l.last_msg_at)} for your reply.</div>`:''}
+    <div class="ai"><div class="ai-h">${ic('spark')} AI insights</div>
+      ${l.summary?`<div class="sum">${esc(l.summary)}</div>`:`<div style="color:var(--muted)">${aiOn?(l.ai_dirty?'Reading this chat…':'No summary yet.'):'AI is off. Add an Anthropic API key on the server to get summaries, requirements and automatic follow-up times.'}</div>`}
+      <dl class="kv">${l.need?`<dt>Requirement</dt><dd>${esc(l.need)}</dd>`:''}${l.budget?`<dt>Budget</dt><dd>${esc(l.budget)}</dd>`:''}${l.next_action&&!closed(l)?`<dt>Next step</dt><dd>${esc(l.next_action)}</dd>`:''}${l.priority?`<dt>Priority</dt><dd style="text-transform:capitalize">${esc(l.priority)}</dd>`:''}</dl></div>
+    <div class="blk"><h4>Next follow-up</h4><div class="fu"><div class="fu-now">${fuNow}</div>
+      <div class="row2"><label class="field">When<input type="datetime-local" id="d-fu" value="${localInput(l.follow_up_at)}"></label>
+        <label class="field" style="flex:0 1 140px">Type<select id="d-ft"><option value="message" ${l.follow_type!=='call'?'selected':''}>Message</option><option value="call" ${l.follow_type==='call'?'selected':''}>Call</option></select></label></div>
+      <div class="chips"><button class="btn sm" data-q="2h">In 2 hours</button><button class="btn sm" data-q="1">Tomorrow 11 AM</button><button class="btn sm" data-q="3">In 3 days</button><button class="btn sm" data-q="7">Next week</button></div>
+      <div class="chips"><button class="btn sm primary" id="d-fu-save">Save follow-up</button>${l.follow_up_at?`<button class="btn sm" id="d-done">${ic('check')} Mark done</button>`:''}</div></div></div>
+    <div class="blk"><h4>Details</h4><div class="row2">
+      <label class="field">Stage<select id="d-st">${STAGES.map(([k,lab])=>`<option value="${k}" ${l.stage===k?'selected':''}>${lab}</option>`).join('')}</select></label>
+      <label class="field">Name<input id="d-name" value="${esc(l.name||'')}" placeholder="${esc(l.wa_name||'Client name')}"></label></div>
+      <label class="field">Private note<textarea id="d-note" rows="2" placeholder="Anything not in the chat, like what was said on a call">${esc(l.note||'')}</textarea></label>
+      <div><button class="btn sm" id="d-save">Save details</button></div></div>
+    <div class="blk"><h4>Conversation · ${l.msg_count} messages</h4><div class="chat">${chat||'<div style="color:var(--muted)">No messages</div>'}</div></div>
+    ${detail.events.length?`<div class="blk"><h4>Activity</h4><div class="timeline">${detail.events.slice(0,15).map(e=>`<div><span class="mono">${nice(e.ts)}</span> · ${esc(e.text)}</div>`).join('')}</div></div>`:''}
+    <div>${l.hidden?`<button class="btn sm" id="d-unhide">Restore to leads</button>`:confirmKey==='hide'?`<div class="confirm"><span>Move this chat to Archived? Nothing is deleted.</span><button class="btn sm solid-danger" id="d-hide-yes">Archive</button><button class="btn sm" id="d-hide-no">Cancel</button></div>`:`<button class="btn sm danger" id="d-hide">${ic('archive')} Not a lead (personal or spam)</button>`}</div>
+  </div></aside>`;
 }
 
 /* ---------- events ---------- */
 async function patch(body,msg){try{await api('/api/leads/'+encodeURIComponent(selId),{method:'PATCH',body});toast(msg);await refresh()}catch(e){if(e.message!=='login')toast(e.message)}}
 document.addEventListener('click',async e=>{
-  const t=e.target.closest('[data-tab]');if(t){tab=t.dataset.tab;confirmKey=null;render();if(tab==='hidden')loadHidden();window.scrollTo({top:0});return}
+  if(e.target.closest('[data-close]')){closeDrawer();return}
+  const pg=e.target.closest('[data-page]');if(pg){page=pg.dataset.page;confirmKey=null;render();if(page==='archived')loadArchived();window.scrollTo({top:0});return}
+  const st=e.target.closest('[data-stage]');if(st){stageFilter=st.dataset.stage;render();return}
   const o=e.target.closest('[data-open]');if(o){openLead(o.dataset.open);return}
   const qb=e.target.closest('[data-q]');if(qb){const d=new Date();if(qb.dataset.q==='2h')d.setHours(d.getHours()+2);else{d.setDate(d.getDate()+Number(qb.dataset.q));d.setHours(11,0,0,0)}$('d-fu').value=localInput(d.getTime());return}
-  const id=e.target.id;
+  const b=e.target.closest('button');const id=b&&b.id;if(!id)return;
   try{switch(id){
-    case 'wa-on':waState={status:'connecting'};render();waState=await api('/api/wa/connect',{method:'POST'});render();break;
+    case 'wa-on':connectStarted=Date.now();waState={...waState,status:'connecting',error:null,qr:null};render();waState=await api('/api/wa/connect',{method:'POST'});render();setTimeout(()=>page==='whatsapp'&&render(),13e3);break;
     case 'wa-off':confirmKey='wa';render();break;
     case 'wa-off-no':confirmKey=null;render();break;
-    case 'wa-off-yes':confirmKey=null;waState=await api('/api/wa/disconnect',{method:'POST'});render();toast('WhatsApp disconnect ho gaya');break;
-    case 'd-close':selId=null;detail=null;render();break;
-    case 'd-copy':{const p='+'+detail.lead.phone;try{await navigator.clipboard.writeText(p);toast('Number copy ho gaya')}catch{toast(p)}break}
-    case 'd-fu-save':{const v=$('d-fu').value;await patch({follow_up_at:v?new Date(v).getTime():null,follow_type:$('d-ft').value},'Follow-up save ho gaya');break}
-    case 'd-done':await api('/api/leads/'+encodeURIComponent(selId)+'/done',{method:'POST',body:{}});toast('Done — zaroorat ho to agla follow-up set karein');await refresh();break;
-    case 'd-save':{document.activeElement?.blur();await patch({stage:$('d-st').value,name:$('d-name').value.trim(),note:$('d-note').value.trim()},'Details save ho gayi');break}
-    case 'd-re':await api('/api/leads/'+encodeURIComponent(selId)+'/reanalyse',{method:'POST'});toast('AI chat dobara padh raha hai…');break;
-    case 'd-hide':confirmKey='hide';detail&&renderDetail();break;
-    case 'd-hide-no':confirmKey=null;renderDetail();break;
-    case 'd-hide-yes':confirmKey=null;await patch({hidden:true},'Leads list se hata diya');selId=null;detail=null;render();break;
-    case 'd-unhide':await patch({hidden:false},'Wapas leads mein aa gaya');loadHidden();break;
+    case 'wa-off-yes':confirmKey=null;waState=await api('/api/wa/disconnect',{method:'POST'});render();toast('WhatsApp unlinked');break;
+    case 'd-copy':{const p='+'+detail.lead.phone;try{await navigator.clipboard.writeText(p);toast('Number copied')}catch{toast(p)}break}
+    case 'd-fu-save':{const v=$('d-fu').value;b.focus();await patch({follow_up_at:v?new Date(v).getTime():null,follow_type:$('d-ft').value},'Follow-up saved');break}
+    case 'd-done':await api('/api/leads/'+encodeURIComponent(selId)+'/done',{method:'POST',body:{}});toast('Marked as done');await refresh();break;
+    case 'd-save':{b.focus();await patch({stage:$('d-st').value,name:$('d-name').value.trim(),note:$('d-note').value.trim()},'Details saved');break}
+    case 'd-re':await api('/api/leads/'+encodeURIComponent(selId)+'/reanalyse',{method:'POST'});toast('Re-analysing this chat…');break;
+    case 'd-hide':confirmKey='hide';renderDrawer();break;
+    case 'd-hide-no':confirmKey=null;renderDrawer();break;
+    case 'd-hide-yes':confirmKey=null;await patch({hidden:true},'Moved to Archived');closeDrawer();break;
+    case 'd-unhide':await patch({hidden:false},'Restored to leads');loadArchived();break;
     case 'logout':await fetch('/api/logout',{method:'POST'});location.reload();break;
   }}catch(err){if(err.message!=='login')toast(err.message)}
 });
-document.addEventListener('change',e=>{if(e.target.id==='d-st'){document.activeElement?.blur();patch({stage:e.target.value},'Stage badal diya')}});
-$('q').addEventListener('input',e=>{q=e.target.value;render()});
-$('sf').innerHTML='<option value="all">Sab stages</option>'+STAGES.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')+'<option value="notlead">AI: lead nahi hai</option>';
-$('sf').addEventListener('change',e=>{sf=e.target.value;render()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selId){selId=null;detail=null;render()}});
+document.addEventListener('change',e=>{if(e.target.id==='d-st'){e.target.blur();patch({stage:e.target.value},'Stage updated')}});
+$('q').addEventListener('input',e=>{q=e.target.value;if(page==='whatsapp')page='leads';render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selId)closeDrawer()});
 
 /* ---------- data + live ---------- */
 let refreshing=false,again=false;
 async function refresh(){if(refreshing){again=true;return}refreshing=true;
-  try{const r=await api('/api/leads');leads=r.leads;if(tab==='hidden')await loadHidden(true);render();if(selId)await loadDetail()}catch{}
+  try{const r=await api('/api/leads');leads=r.leads;if(page==='archived')await loadArchived(true);render();if(selId)await loadDetail()}catch{}
   refreshing=false;if(again){again=false;refresh()}}
-async function loadHidden(silent){try{hiddenLeads=(await api('/api/leads?hidden=1')).leads;if(!silent)render()}catch{}}
+async function loadArchived(silent){try{archived=(await api('/api/leads?hidden=1')).leads;if(!silent)render()}catch{}}
 function live(){const es=new EventSource('/api/events');
   es.addEventListener('change',()=>refresh());
-  es.addEventListener('wa',e=>{const s=JSON.parse(e.data);const was=waState.status;waState=s;if(was!=='connected'&&s.status==='connected')toast('WhatsApp connected!');
-    if(tab==='whatsapp'&&!confirmKey)$('area').innerHTML=waView();renderWaChip()});
+  es.addEventListener('wa',e=>{const s=JSON.parse(e.data);const was=waState.status;waState=s;if(was!=='connected'&&s.status==='connected')toast('WhatsApp connected');
+    const a=document.activeElement;if(!(a&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName))&&(page==='whatsapp'||was!==s.status))render();else renderNav()});
   es.onerror=()=>{};}
-
 function showLogin(){$('app').hidden=true;$('login').hidden=false;$('pw').focus()}
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-err').hidden=true;
   const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('pw').value})});
-  if(r.ok){$('login').hidden=true;boot()}else{const j=await r.json().catch(()=>({}));$('login-err').textContent=j.error||'Login nahi hua';$('login-err').hidden=false}});
-
-function setDay(){const d=new Date();$('today-label').textContent=`${WD[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`}
+  if(r.ok){$('login').hidden=true;boot()}else{const j=await r.json().catch(()=>({}));$('login-err').textContent=j.error||'Could not sign in';$('login-err').hidden=false}});
+let booted=false;
 async function boot(){
   try{const s=await api('/api/state');waState=s.wa;aiOn=s.ai}catch{return}
-  $('app').hidden=false;setDay();
-  if(waState.status!=='connected'&&waState.status!=='reconnecting'&&waState.status!=='connecting')tab='whatsapp';
-  render();await refresh();live();
-  setInterval(()=>{setDay();const a=document.activeElement;if(!a||!['INPUT','TEXTAREA','SELECT'].includes(a.tagName))render()},60e3);
+  $('app').hidden=false;
+  if(!['connected','reconnecting','connecting'].includes(waState.status))page='whatsapp';
+  render();await refresh();if(booted)return;booted=true;live();
+  setInterval(()=>{const a=document.activeElement;if(!(a&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName)))render()},60e3);
 }
 boot();
 </script>

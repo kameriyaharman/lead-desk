@@ -35,11 +35,11 @@ app.post('/api/login', (req, res) => {
   const ip = req.ip;
   const a = attempts.get(ip) || { n: 0, t: Date.now() };
   if (Date.now() - a.t > 15 * 60e3) { a.n = 0; a.t = Date.now(); }
-  if (a.n >= 10) return res.status(429).json({ error: 'Bahut baar galat password. 15 minute baad try karein.' });
-  if (!PASSWORD) return res.status(500).json({ error: 'Server pe DASHBOARD_PASSWORD set nahi hai.' });
+  if (a.n >= 10) return res.status(429).json({ error: 'Too many wrong attempts. Try again in 15 minutes.' });
+  if (!PASSWORD) return res.status(500).json({ error: 'DASHBOARD_PASSWORD is not set on the server.' });
   const p = String(req.body?.password || '');
   const ok = p.length === PASSWORD.length && crypto.timingSafeEqual(Buffer.from(p), Buffer.from(PASSWORD));
-  if (!ok) { a.n++; attempts.set(ip, a); return res.status(401).json({ error: 'Password galat hai.' }); }
+  if (!ok) { a.n++; attempts.set(ip, a); return res.status(401).json({ error: 'Wrong password.' }); }
   attempts.delete(ip);
   res.cookie('sess', makeToken(), { httpOnly: true, sameSite: 'lax', secure: req.secure, maxAge: 60 * 864e5 });
   res.json({ ok: true });
@@ -67,16 +67,16 @@ app.get('/api/leads', (req, res) => {
 
 app.get('/api/leads/:id', (req, res) => {
   const lead = db.prepare(`SELECT ${LEAD_COLS} FROM leads WHERE id=?`).get(req.params.id);
-  if (!lead) return res.status(404).json({ error: 'Lead nahi mili' });
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
   const messages = db.prepare('SELECT id, from_me, ts, kind, text FROM messages WHERE lead_id=? ORDER BY ts DESC LIMIT 400').all(lead.id).reverse();
   const events = db.prepare('SELECT ts, text FROM events WHERE lead_id=? ORDER BY ts DESC LIMIT 100').all(lead.id);
   res.json({ lead, messages, events });
 });
 
-const STAGES = { new: 'Nayi', talking: 'Baat chal rahi', interested: 'Interested', quote: 'Quote bheja', won: 'Deal pakki', lost: 'Lost' };
+const STAGES = { new: 'New', talking: 'In discussion', interested: 'Interested', quote: 'Quote sent', won: 'Won', lost: 'Lost' };
 app.patch('/api/leads/:id', (req, res) => {
   const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
-  if (!lead) return res.status(404).json({ error: 'Lead nahi mili' });
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
   const b = req.body || {};
   const set = {}; const notes = [];
   if ('stage' in b && STAGES[b.stage] && b.stage !== lead.stage) {
@@ -85,13 +85,13 @@ app.patch('/api/leads/:id', (req, res) => {
   }
   if ('follow_up_at' in b) {
     const v = b.follow_up_at === null ? null : Number(b.follow_up_at);
-    if (v !== null && !Number.isFinite(v)) return res.status(400).json({ error: 'Follow-up time galat hai' });
+    if (v !== null && !Number.isFinite(v)) return res.status(400).json({ error: 'Invalid follow-up time' });
     set.follow_up_at = v; set.follow_source = 'manual';
-    notes.push(v ? 'Follow-up aapne set kiya' : 'Follow-up hata diya');
+    notes.push(v ? 'Follow-up set manually' : 'Follow-up cleared');
   }
   if ('follow_type' in b) set.follow_type = b.follow_type === 'call' ? 'call' : 'message';
   for (const k of ['name', 'note', 'need', 'budget', 'next_action']) if (k in b) set[k] = b[k] === '' ? null : String(b[k]).slice(0, 2000);
-  if ('hidden' in b) { set.hidden = b.hidden ? 1 : 0; notes.push(b.hidden ? 'Lead nahi hai — list se hataya' : 'Wapas leads mein laaya'); }
+  if ('hidden' in b) { set.hidden = b.hidden ? 1 : 0; notes.push(b.hidden ? 'Archived (not a lead)' : 'Restored to leads'); }
   const keys = Object.keys(set);
   if (keys.length) db.prepare(`UPDATE leads SET ${keys.map((k) => `${k}=@${k}`).join(', ')} WHERE id=@id`).run({ ...set, id: lead.id });
   notes.forEach((n) => logEvent(lead.id, n));
@@ -101,21 +101,21 @@ app.patch('/api/leads/:id', (req, res) => {
 
 app.post('/api/leads/:id/done', (req, res) => {
   const lead = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
-  if (!lead) return res.status(404).json({ error: 'Lead nahi mili' });
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
   const next = req.body?.next_at ? Number(req.body.next_at) : null;
   db.prepare("UPDATE leads SET follow_up_at=?, follow_source='manual' WHERE id=?").run(next, lead.id);
-  logEvent(lead.id, `Follow-up ho gaya${lead.follow_type === 'call' ? ' (call)' : ''}`);
+  logEvent(lead.id, `Follow-up done${lead.follow_type === 'call' ? ' (call)' : ''}`);
   bus.emit('change');
   res.json({ ok: true });
 });
 
 app.post('/api/leads/:id/reanalyse', (req, res) => {
-  if (!aiEnabled()) return res.status(400).json({ error: 'AI band hai: server pe ANTHROPIC_API_KEY set karein.' });
+  if (!aiEnabled()) return res.status(400).json({ error: 'AI is off. Add ANTHROPIC_API_KEY on the server.' });
   reanalyse(req.params.id);
   res.json({ ok: true });
 });
 
-app.post('/api/wa/connect', async (req, res) => { await startWhatsApp(); res.json(publicStatus()); });
+app.post('/api/wa/connect', (req, res) => { startWhatsApp(true); setTimeout(() => res.json(publicStatus()), 300); });
 app.post('/api/wa/disconnect', async (req, res) => { await disconnectWhatsApp(); res.json(publicStatus()); });
 
 /* ---------- live updates ---------- */
