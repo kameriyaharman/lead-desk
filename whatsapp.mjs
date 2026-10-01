@@ -173,7 +173,7 @@ function killSocket() {
 
 export async function startWhatsApp(force = false) {
   if (force === true && wa.status !== 'connected') { clearTimeout(watchdog); killSocket(); starting = false; }
-  if (starting ||(wa.sock && ['connecting', 'qr', 'connected'].includes(wa.status))) return;
+  if (starting || (wa.sock && ['connecting', 'qr', 'connected'].includes(wa.status))) return;
   starting = true;
   clearTimeout(reconnectTimer);
   clearTimeout(watchdog);
