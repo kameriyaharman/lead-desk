@@ -9,36 +9,34 @@ const MODEL = process.env.AI_MODEL || 'claude-haiku-4-5';
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-let geminiModel = process.env.GEMINI_MODEL || null;
 export const aiEnabled = () => !!(anthropic || GEMINI_KEY);
 const client = anthropic || GEMINI_KEY;
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 
-async function pickGeminiModel() {
-  if (geminiModel) return geminiModel;
+// Free-tier Gemini models each have their own quota and can be busy, so keep an ordered
+// list and move to the next one when a model is overloaded (503) or out of quota (429).
+let geminiModels = null;
+let gi = 0;
+async function geminiCandidates() {
+  if (geminiModels) return geminiModels;
   const r = await fetch(`${GEMINI_BASE}/models?pageSize=200&key=${encodeURIComponent(GEMINI_KEY)}`);
   if (!r.ok) throw new HttpError(r.status, 'Gemini model list failed: ' + (await r.text()).slice(0, 200));
   const names = ((await r.json()).models || [])
     .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
     .map((m) => m.name.replace(/^models\//, ''))
-    .filter((n) => /flash/.test(n) && !/(image|tts|live|audio|embed|thinking|exp)/.test(n));
-  const stable = names.filter((n) => !/preview/.test(n));
+    .filter((n) => /flash/.test(n) && !/(image|tts|live|audio|embed|thinking|exp|preview)/.test(n));
   const ver = (n) => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [0, 0])[1]);
-  const best = (list) => list.sort((x, y) => ver(y) - ver(x) || x.length - y.length)[0];
-  geminiModel = names.includes('gemini-flash-latest') ? 'gemini-flash-latest'
-    : best(stable.filter((n) => !/lite/.test(n))) || best(stable) || best(names);
-  if (!geminiModel) throw new Error('No Gemini Flash model available for this key');
-  console.log('[ai] using Gemini model', geminiModel);
-  return geminiModel;
+  const lite = names.filter((n) => /lite/.test(n)).sort((x, y) => ver(y) - ver(x));
+  const full = names.filter((n) => !/lite/.test(n)).sort((x, y) => ver(y) - ver(x));
+  // lite models have the most generous free quotas, so try them first
+  geminiModels = [...new Set([process.env.GEMINI_MODEL, ...lite, ...full].filter(Boolean))];
+  if (!geminiModels.length) throw new Error('No Gemini Flash model available for this key');
+  console.log('[ai] Gemini models to try:', geminiModels.join(', '));
+  return geminiModels;
 }
 
-async function complete(system, prompt) {
-  if (anthropic) {
-    const res = await anthropic.messages.create({ model: MODEL, max_tokens: 600, system, messages: [{ role: 'user', content: prompt }] });
-    return (res.content || []).map((c) => c.text || '').join('');
-  }
-  const model = await pickGeminiModel();
+async function geminiCall(model, system, prompt) {
   const r = await fetch(`${GEMINI_BASE}/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -48,13 +46,29 @@ async function complete(system, prompt) {
       generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048 },
     }),
   });
-  if (!r.ok) {
-    const body = (await r.text()).slice(0, 300);
-    if (r.status === 404) geminiModel = process.env.GEMINI_MODEL || null; // model retired: pick again next time
-    throw new HttpError(r.status, 'Gemini error: ' + body);
-  }
+  if (!r.ok) throw new HttpError(r.status, `Gemini ${model}: ` + (await r.text()).replace(/\s+/g, ' ').slice(0, 400));
   const j = await r.json();
   return (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+}
+
+async function complete(system, prompt) {
+  if (anthropic) {
+    const res = await anthropic.messages.create({ model: MODEL, max_tokens: 600, system, messages: [{ role: 'user', content: prompt }] });
+    return (res.content || []).map((c) => c.text || '').join('');
+  }
+  const models = await geminiCandidates();
+  let lastErr;
+  for (let tries = 0; tries < models.length; tries++) {
+    const model = models[gi % models.length];
+    try { return await geminiCall(model, system, prompt); }
+    catch (e) {
+      lastErr = e;
+      if (![404, 429, 503, 500].includes(e.status)) throw e;
+      gi++;
+      console.log(`[ai] ${model} unavailable (${e.status}), switching to ${models[gi % models.length]}`);
+    }
+  }
+  throw lastErr;
 }
 
 const IST = 5.5 * 3600e3;
@@ -121,8 +135,9 @@ ${chat}`;
 }
 
 let running = false;
+let pausedUntil = 0; // when every model is out of quota, wait before trying again
 async function tick() {
-  if (!client || running) return;
+  if (!client || running || Date.now() < pausedUntil) return;
   running = true;
   try {
     const settle = Date.now() - 90e3;           // wait till the chat pauses
@@ -134,7 +149,8 @@ async function tick() {
       try { await analyse(lead); changed = true; }
       catch (e) {
         console.error('AI failed for', lead.id, e?.status || '', e?.message || e);
-        if ([400, 401, 403, 404, 429].includes(e?.status) || e?.status >= 500) break; // key/quota/outage: retry later, keep the chat queued
+        if (e?.status === 429 || e?.status >= 500) { pausedUntil = Date.now() + 10 * 60e3; console.log('[ai] all models busy or out of quota, pausing 10 min'); break; }
+        if ([400, 401, 403, 404].includes(e?.status)) break; // key problem: retry later, keep the chat queued
         db.prepare('UPDATE leads SET ai_dirty=0, ai_at=? WHERE id=?').run(Date.now(), lead.id); // avoid retry loop
       }
     }

@@ -259,6 +259,11 @@ td .av{width:30px;height:30px;font-size:12px}
 </div>
 <div id="drawer-root"></div>
 <div class="toast" id="toast" hidden></div>
+<style>
+.stage-sel{appearance:none;-webkit-appearance:none;border:1px solid transparent;border-radius:99px;padding:3px 26px 3px 10px;font-size:12px;font-weight:650;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 13px) 55%,calc(100% - 9px) 55%;background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+.stage-sel:hover{border-color:currentColor}
+.d-head .stage-sel{font-size:12.5px;padding:4px 28px 4px 12px}
+</style>
 <script>
 const STAGES=[['new','New','#2e90fa'],['talking','In discussion','#7a5af8'],['interested','Interested','#14b8a6'],['quote','Quote sent','#f79009'],['won','Won','#17b26a'],['lost','Lost','#98a2b3']];
 const SL=Object.fromEntries(STAGES.map(s=>[s[0],s[1]]));
@@ -314,6 +319,7 @@ const realLeads=()=>leads.filter(l=>!notLead(l));
 function avatar(l){const n=nameOf(l).replace(/[^\p{L}\p{N} ]/gu,'').trim();const ini=(n.split(/\s+/).map(w=>w[0]).join('').slice(0,2)||'#').toUpperCase();
   let h=0;for(const c of String(l.id))h=(h*31+c.charCodeAt(0))%360;return `<span class="av" style="background:hsl(${h} 45% 45%)">${esc(ini)}</span>`}
 const stageBadge=s=>`<span class="badge s-${esc(s)}">${esc(SL[s]||s)}</span>`;
+const stageSelect=(l,id='')=>`<select class="stage-sel s-${esc(l.stage)}" ${id?`id="${id}"`:''} data-lead="${esc(l.id)}" aria-label="Change stage">${STAGES.map(([k,lab])=>`<option value="${k}" ${l.stage===k?'selected':''}>${lab}</option>`).join('')}</select>`;
 function matchQ(l){const qq=q.trim().toLowerCase();return !qq||[l.display_name,l.phone,l.need,l.summary,l.last_text,l.budget].join(' ').toLowerCase().includes(qq)}
 
 /* ---------- api ---------- */
@@ -409,7 +415,7 @@ function vLeads(){
   return `<div class="card"><div class="toolbar"><div class="seg">${segs.map(([k,lab])=>`<button data-stage="${k}" aria-pressed="${stageFilter===k}">${lab}</button>`).join('')}</div></div>
   ${rows.length?`<div class="tbl-wrap"><table><thead><tr><th>Contact</th><th>Stage</th><th>Requirement</th><th>Budget</th><th>Next follow-up</th><th>Last message</th></tr></thead><tbody>
   ${rows.map(l=>`<tr class="click" data-open="${esc(l.id)}"><td><div class="who">${avatar(l)}<div style="min-width:0"><div class="nm">${esc(nameOf(l))}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}</div><div class="sub2 mono">${l.phone?'+'+esc(l.phone):''}</div></div></div></td>
-  <td>${stageBadge(l.stage)}</td><td><div class="clip">${esc(l.need||'—')}</div></td><td>${esc(l.budget||'—')}</td>
+  <td>${stageSelect(l)}</td><td><div class="clip">${esc(l.need||'—')}</div></td><td>${esc(l.budget||'—')}</td>
   <td><span class="when ${overdue(l)?'red':dueToday(l)?'amber':''}">${l.follow_up_at&&active(l)?(l.follow_type==='call'?'Call · ':'Msg · ')+nice(l.follow_up_at):'—'}</span></td>
   <td><div class="clip">${esc((l.last_from_me?'You: ':'')+(l.last_text||''))}</div><div class="sub2">${short(l.last_msg_at)}</div></td></tr>`).join('')}
   </tbody></table></div>`:leads.length?emptyState('users','No leads match','Try another stage or search.'):noLeadsYet()}</div>`}
@@ -449,12 +455,12 @@ function renderDrawer(){
     chat+=`<div class="bub ${m.from_me?'out':'in'}">${esc(m.text)}<span class="t">${t12(d)}</span></div>`}
   const fuNow=!l.follow_up_at?`<span style="color:var(--muted);font-weight:500">${closed(l)?'This lead is closed.':'No follow-up scheduled.'}</span>`:`<span class="badge b-plain ${overdue(l)?'t-red':dueToday(l)?'t-amber':'t-brand'}">${l.follow_type==='call'?ic('phone'):ic('reply')} ${l.follow_type==='call'?'Call':'Message'}</span><span>${nice(l.follow_up_at)}</span><span style="color:var(--faint);font-size:12px;font-weight:500">${l.follow_source==='manual'?'set by you':'suggested by AI'}</span>`;
   root.innerHTML=`<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-label="Lead details">
-  <div class="d-head">${avatar(l)}<div style="min-width:0;flex:1"><h2>${esc(nameOf(l))}</h2><div class="d-meta">${l.phone?`<span class="mono">+${esc(l.phone)}</span>`:'<span>Number hidden by WhatsApp</span>'}<span>First message ${nice(l.first_msg_at)}</span></div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${stageBadge(l.stage)}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}</div></div><button class="btn sm ghost" data-close aria-label="Close">${ic('x')}</button></div>
+  <div class="d-head">${avatar(l)}<div style="min-width:0;flex:1"><h2>${esc(nameOf(l))}</h2><div class="d-meta">${l.phone?`<span class="mono">+${esc(l.phone)}</span>`:'<span>Number hidden by WhatsApp</span>'}<span>First message ${nice(l.first_msg_at)}</span></div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${stageSelect(l,'d-st-top')}${l.priority==='hot'&&active(l)?'<span class="hot">HOT</span>':''}</div></div><button class="btn sm ghost" data-close aria-label="Close">${ic('x')}</button></div>
   <div class="d-acts">${wa?`<a class="btn sm" href="${wa}" target="_blank" rel="noopener">${ic('ext')} Open in WhatsApp</a>`:''}${l.phone?`<button class="btn sm" id="d-copy">${ic('copy')} Copy number</button>`:''}${aiOn?`<button class="btn sm" id="d-re">${ic('spark')} Re-analyse</button>`:''}</div>
   <div class="d-body">
     ${needsReply(l)?`<div class="banner" style="background:var(--brand-soft);border-color:transparent;justify-content:flex-start">${ic('reply')} This client has been waiting ${ago(l.last_msg_at)} for your reply.</div>`:''}
     <div class="ai"><div class="ai-h">${ic('spark')} AI insights</div>
-      ${l.summary?`<div class="sum">${esc(l.summary)}</div>`:`<div style="color:var(--muted)">${aiOn?(l.ai_dirty?'Reading this chat…':'No summary yet.'):'AI is off. Add an Anthropic API key on the server to get summaries, requirements and automatic follow-up times.'}</div>`}
+      ${l.summary?`<div class="sum">${esc(l.summary)}</div>`:`<div style="color:var(--muted)">${aiOn?(l.ai_dirty?'Reading this chat…':'No summary yet.'):'AI is off. Add a Gemini or Anthropic API key on the server to get summaries, requirements and automatic follow-up times.'}</div>`}
       <dl class="kv">${l.need?`<dt>Requirement</dt><dd>${esc(l.need)}</dd>`:''}${l.budget?`<dt>Budget</dt><dd>${esc(l.budget)}</dd>`:''}${l.next_action&&!closed(l)?`<dt>Next step</dt><dd>${esc(l.next_action)}</dd>`:''}${l.priority?`<dt>Priority</dt><dd style="text-transform:capitalize">${esc(l.priority)}</dd>`:''}</dl></div>
     <div class="blk"><h4>Next follow-up</h4><div class="fu"><div class="fu-now">${fuNow}</div>
       <div class="row2"><label class="field">When<input type="datetime-local" id="d-fu" value="${localInput(l.follow_up_at)}"></label>
@@ -476,6 +482,7 @@ function renderDrawer(){
 async function patch(body,msg){try{await api('/api/leads/'+encodeURIComponent(selId),{method:'PATCH',body});toast(msg);await refresh()}catch(e){if(e.message!=='login')toast(e.message)}}
 document.addEventListener('click',async e=>{
   if(e.target.closest('[data-close]')){closeDrawer();return}
+  if(e.target.closest('select,input,textarea,a'))return;
   const pg=e.target.closest('[data-page]');if(pg){page=pg.dataset.page;confirmKey=null;render();if(page==='archived')loadArchived();window.scrollTo({top:0});return}
   const st=e.target.closest('[data-stage]');if(st){stageFilter=st.dataset.stage;render();return}
   const o=e.target.closest('[data-open]');if(o){openLead(o.dataset.open);return}
@@ -498,7 +505,8 @@ document.addEventListener('click',async e=>{
     case 'logout':await fetch('/api/logout',{method:'POST'});location.reload();break;
   }}catch(err){if(err.message!=='login')toast(err.message)}
 });
-document.addEventListener('change',e=>{if(e.target.id==='d-st'){e.target.blur();patch({stage:e.target.value},'Stage updated')}});
+document.addEventListener('change',async e=>{const t=e.target;if(!t.classList.contains('stage-sel')&&t.id!=='d-st')return;t.blur();
+  const id=t.dataset.lead||selId;try{await api('/api/leads/'+encodeURIComponent(id),{method:'PATCH',body:{stage:t.value}});toast('Stage updated to '+SL[t.value]);await refresh()}catch(err){if(err.message!=='login')toast(err.message)}});
 $('q').addEventListener('input',e=>{q=e.target.value;if(page==='whatsapp')page='leads';render()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selId)closeDrawer()});
 
