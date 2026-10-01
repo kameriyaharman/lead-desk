@@ -1,7 +1,7 @@
 // WhatsApp side: links as a linked device (like WhatsApp Web) and ONLY READS.
 // This module never sends messages, never marks chats as read, never goes "online".
 import makeWASocket, {
-  Browsers, DisconnectReason, fetchLatestBaileysVersion, useMultiFileAuthState,
+  Browsers, DisconnectReason, fetchLatestBaileysVersion, fetchLatestWaWebVersion, useMultiFileAuthState,
   isLidUser, isPnUser, jidNormalizedUser,
 } from 'baileys';
 import { EventEmitter } from 'node:events';
@@ -25,6 +25,8 @@ export const wa = { status: 'disconnected', qr: null, me: null, error: null, sin
 let reconnectTimer = null;
 let watchdog = null;
 let starting = false;
+let attempt = 0; // which browser profile to present; rotates if WhatsApp refuses the handshake
+const BROWSERS = () => [Browsers.macOS('Desktop'), Browsers.ubuntu('Chrome'), Browsers.windows('Chrome')];
 
 function setStatus(s, extra = {}) {
   Object.assign(wa, { status: s, since: Date.now() }, extra);
@@ -172,7 +174,7 @@ function killSocket() {
 }
 
 export async function startWhatsApp(force = false) {
-  if (force === true && wa.status !== 'connected') { clearTimeout(watchdog); killSocket(); starting = false; }
+  if (force === true && wa.status !== 'connected') { clearTimeout(watchdog); killSocket(); starting = false; attempt = 0; }
   if (starting || (wa.sock && ['connecting', 'qr', 'connected'].includes(wa.status))) return;
   starting = true;
   clearTimeout(reconnectTimer);
@@ -181,14 +183,19 @@ export async function startWhatsApp(force = false) {
     setStatus('connecting', { qr: null, error: null });
     fs.mkdirSync(AUTH_DIR, { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-    let version;
-    try { ({ version } = await withTimeout(fetchLatestBaileysVersion(), 6000)); log('using WA version', version?.join('.')); }
-    catch (e) { log('version check skipped:', e?.message); }
+    let version = process.env.WA_VERSION ? process.env.WA_VERSION.split('.').map(Number) : null;
+    if (!version) {
+      try { const r = await withTimeout(fetchLatestWaWebVersion(), 6000); if (r?.isLatest !== false && r?.version) version = r.version; } catch (e) { log('web version check failed:', e?.message); }
+    }
+    if (!version) {
+      try { ({ version } = await withTimeout(fetchLatestBaileysVersion(), 6000)); } catch (e) { log('version check skipped:', e?.message); }
+    }
+    log('using WA version', version?.join('.') || 'bundled default');
     const sock = makeWASocket({
       ...(version ? { version } : {}),
       auth: state,
       logger,
-      browser: Browsers.macOS('Desktop'),
+      browser: BROWSERS()[attempt % 3],
       markOnlineOnConnect: false,   // phone keeps getting notifications
       syncFullHistory: true,
       generateHighQualityLinkPreview: false,
@@ -214,6 +221,7 @@ export async function startWhatsApp(force = false) {
         clearTimeout(watchdog);
         wa.me = userPart(jidNormalizedUser(sock.user?.id));
         kv.set('wa_me', wa.me);
+        attempt = 0;
         setStatus('connected', { qr: null, error: null });
       }
       if (u.connection === 'close') {
@@ -223,6 +231,10 @@ export async function startWhatsApp(force = false) {
         if (code === DisconnectReason.loggedOut || code === 401) {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
           setStatus('logged_out', { qr: null, error: 'This device was unlinked from your phone. Scan a new QR code to reconnect.' });
+        } else if (!isPaired() && wa.status === 'connecting' && attempt < 2) {
+          attempt++;
+          log('handshake refused, retrying with another browser profile', attempt);
+          reconnectTimer = setTimeout(startWhatsApp, 1500);
         } else if (!isPaired() && code !== DisconnectReason.restartRequired) {
           setStatus('disconnected', { qr: null, error: wa.status === 'qr' ? 'The QR code expired. Generate a new one to try again.' : 'Could not connect to WhatsApp. Please try again.' });
         } else {
