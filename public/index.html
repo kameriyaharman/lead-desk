@@ -75,7 +75,12 @@ svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .topbar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--canvas) 85%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:12px 28px;flex-wrap:wrap}
 .topbar h1{font-size:19px;font-weight:700}
 .topbar .sub{color:var(--muted);font-size:12.5px}
-.search{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);background:var(--surface);border-radius:9px;padding:7px 11px;min-width:0;flex:0 1 300px;color:var(--muted)}
+.clocks{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.clock{display:flex;flex-direction:column;align-items:flex-start;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:4px 10px;line-height:1.25;min-width:0}
+.clock b{font-family:var(--f-mono);font-size:13px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (max-width:900px){.clock.opt{display:none}}
+.clock span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);background:var(--surface);border-radius:9px;padding:7px 11px;min-width:0;flex:0 1 300px;color:var(--muted)}
 .search input{border:0;background:none;outline:none;min-width:0;width:100%;color:var(--text)}
 .content{padding:24px 28px 48px;display:flex;flex-direction:column;gap:20px;max-width:1400px;width:100%}
 
@@ -251,6 +256,7 @@ td .av{width:30px;height:30px;font-size:12px}
   <div class="main">
     <header class="topbar">
       <div><h1 id="page-title">Overview</h1><div class="sub" id="page-sub"></div></div>
+      <div class="clocks" id="clocks" aria-label="Current time in the USA"></div>
       <label class="search"><svg viewBox="0 0 24 24" class="i"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search name, number or chat…" aria-label="Search leads"></label>
     </header>
     <main class="content" id="content"></main>
@@ -293,7 +299,7 @@ const I={
   refresh:'<path d="M20 11a8 8 0 0 0-14.8-4M4 4v4h4M4 13a8 8 0 0 0 14.8 4M20 20v-4h-4"/>',
 };
 const ic=(n,cls='i')=>`<svg viewBox="0 0 24 24" class="${cls}">${I[n]}</svg>`;
-let leads=[],archived=[],waState={status:'unknown'},aiOn=false,page='overview',selId=null,detail=null,q='',stageFilter='all',confirmKey=null,connectStarted=0;
+let leads=[],archived=[],waState={status:'unknown'},aiOn=false,page='overview',selId=null,detail=null,q='',stageFilter='all',attnFilter='all',confirmKey=null,connectStarted=0;
 
 /* ---------- time ---------- */
 const pad=n=>String(n).padStart(2,'0');
@@ -343,15 +349,21 @@ function renderNav(){
 }
 function render(){
   renderNav();
-  const meta={overview:['Overview',todayLabel()],attention:['Needs attention','Unanswered chats and follow-ups due'],followups:['Follow-ups','Scheduled calls and messages'],leads:['All leads',`${realLeads().length} contacts from WhatsApp`],pipeline:['Pipeline','Leads by stage'],archived:['Archived','Chats marked as not a lead'],whatsapp:['WhatsApp','Connect the number your leads message']};
+  const meta={overview:['Overview',todayLabel()],attention:[{all:'Needs attention',reply:'Needs a reply',overdue:'Overdue follow-ups',due:'Due today',new:'New leads today'}[attnFilter]||'Needs attention','Chats and follow-ups that need you'],followups:['Follow-ups','Scheduled calls and messages'],leads:['All leads',`${realLeads().length} contacts from WhatsApp`],pipeline:['Pipeline','Leads by stage'],archived:['Archived','Chats marked as not a lead'],whatsapp:['WhatsApp','Connect the number your leads message']};
   $('page-title').textContent=meta[page][0];$('page-sub').textContent=meta[page][1];
   const v={overview:vOverview,attention:vAttention,followups:vFollowups,leads:vLeads,pipeline:vPipeline,archived:vArchived,whatsapp:vWhatsApp}[page]();
   $('content').innerHTML=(page!=='whatsapp'&&!['connected','reconnecting','connecting','qr'].includes(waState.status)?`<div class="banner"><span style="display:flex;gap:10px;align-items:center">${ic('alert')} WhatsApp is not linked, so new messages are not being tracked.</span><button class="btn sm primary" data-page="whatsapp">Connect WhatsApp</button></div>`:'')+v;
 }
+const US_ZONES=[['America/New_York','New York'],['America/Chicago','Chicago',1],['America/Denver','Denver',1],['America/Los_Angeles','Los Angeles']];
+function renderClocks(){const el=$('clocks');if(!el)return;const now=new Date();
+  el.innerHTML=US_ZONES.map(([tz,city,opt])=>{const t=new Intl.DateTimeFormat('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit',hour12:true}).format(now);
+    const d=new Intl.DateTimeFormat('en-US',{timeZone:tz,weekday:'short'}).format(now);
+    const z=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'short'}).formatToParts(now).find(p=>p.type==='timeZoneName')?.value||'';
+    return `<div class="clock${opt?' opt':''}" title="${city} (${z})"><span>${city} · ${z}</span><b>${d} ${t}</b></div>`}).join('')}
 function todayLabel(){const d=new Date();return `${WDS[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`}
 
 /* ---------- views ---------- */
-function kpi(label,val,icn,tone,foot,go){return `<button class="kpi" data-page="${go}"><span class="top"><span class="ic ${tone}">${ic(icn)}</span>${label}</span><b>${val}</b><span class="foot">${foot}</span></button>`}
+function kpi(label,val,icn,tone,foot,go,af='all'){return `<button class="kpi" data-page="${go}" data-af="${af}"><span class="top"><span class="ic ${tone}">${ic(icn)}</span>${label}</span><b>${val}</b><span class="foot">${foot}</span></button>`}
 function emptyState(icn,title,text,btn=''){return `<div class="empty"><span class="ic t-brand">${ic(icn)}</span><h3>${title}</h3><div>${text}</div>${btn}</div>`}
 function noLeadsYet(){return waState.status==='connected'?emptyState('wa','Syncing your chats…','WhatsApp is linked. Recent chats are importing and new messages will show up here automatically.'):emptyState('wa','No leads yet','Link your WhatsApp Business number and every chat becomes a lead automatically.','<button class="btn primary" data-page="whatsapp">Connect WhatsApp</button>')}
 function lrow(l){
@@ -369,10 +381,10 @@ function vOverview(){
   const open=realLeads().filter(l=>!closed(l)).length,won=realLeads().filter(l=>l.stage==='won').length;
   const att=[...reply,...od,...due].slice(0,8);
   return `<section class="kpis">
-    ${kpi('Needs a reply',reply.length,'reply','t-brand','Client messaged, no answer yet','attention')}
-    ${kpi('Overdue follow-ups',od.length,'alert','t-red','Past the planned time','attention')}
-    ${kpi('Due today',due.length,'clock','t-amber','Calls & messages for today','attention')}
-    ${kpi('New leads today',nt.length,'spark','t-green',`${open} open · ${won} won`,'leads')}
+    ${kpi('Needs a reply',reply.length,'reply','t-brand','Client messaged, no answer yet','attention','reply')}
+    ${kpi('Overdue follow-ups',od.length,'alert','t-red','Past the planned time','attention','overdue')}
+    ${kpi('Due today',due.length,'clock','t-amber','Calls & messages for today','attention','due')}
+    ${kpi('New leads today',nt.length,'spark','t-green',`${open} open · ${won} won`,'attention','new')}
   </section>
   <section class="grid2">
     <div class="card"><div class="card-h"><h3>Needs attention</h3><button class="btn sm ghost" data-page="attention">View all</button></div>
@@ -397,13 +409,16 @@ function stageMix(){
   <div class="legend">${seg.map(s=>`<div><i style="background:${s.c}"></i>${s.lab}<b>${s.n}</b></div>`).join('')}</div>`}
 function vAttention(){
   const L=leads.filter(matchQ);
-  const reply=L.filter(needsReply).sort((a,b)=>a.last_msg_at-b.last_msg_at),od=L.filter(l=>overdue(l)&&!needsReply(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at),due=L.filter(l=>dueToday(l)&&!needsReply(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at),nt=L.filter(l=>newToday(l)&&!reply.includes(l)&&!od.includes(l)&&!due.includes(l));
+  const reply=L.filter(needsReply).sort((a,b)=>a.last_msg_at-b.last_msg_at),od=L.filter(l=>overdue(l)&&!needsReply(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at),due=L.filter(l=>dueToday(l)&&!needsReply(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at),ntAll=L.filter(newToday).sort((a,b)=>b.first_msg_at-a.first_msg_at);
+  const nt=ntAll.filter(l=>!reply.includes(l)&&!od.includes(l)&&!due.includes(l));
+  const G={reply:['Waiting for your reply',reply],overdue:['Overdue follow-ups',od],due:['Due later today',due],new:['New leads today',attnFilter==='new'?ntAll:nt]};
+  const segs=[['all','All',reply.length+od.length+due.length+nt.length],['reply','Needs a reply',reply.length],['overdue','Overdue',od.length],['due','Due today',due.length],['new','New today',ntAll.length]];
+  const keys=attnFilter==='all'?['reply','overdue','due','new']:[attnFilter];
   let h='';
-  if(reply.length)h+=`<div class="sec-h">Waiting for your reply · ${reply.length}</div>${reply.map(lrow).join('')}`;
-  if(od.length)h+=`<div class="sec-h">Overdue follow-ups · ${od.length}</div>${od.map(lrow).join('')}`;
-  if(due.length)h+=`<div class="sec-h">Due later today · ${due.length}</div>${due.map(lrow).join('')}`;
-  if(nt.length)h+=`<div class="sec-h">New today · ${nt.length}</div>${nt.map(lrow).join('')}`;
-  return `<div class="card">${h?`<div class="rows">${h}</div>`:leads.length?emptyState('check','You are all caught up','Nothing needs your attention right now.'):noLeadsYet()}</div>`}
+  for(const k of keys){const [t,ls]=G[k];if(ls.length)h+=`<div class="sec-h">${t} · ${ls.length}</div>${ls.map(lrow).join('')}`}
+  const empty={all:['You are all caught up','Nothing needs your attention right now.'],reply:['No one is waiting for a reply','Every client message has an answer.'],overdue:['No overdue follow-ups','You are on top of every follow-up.'],due:['Nothing else due today','No more calls or messages planned for today.'],new:['No new leads today yet','New WhatsApp enquiries will show up here as they arrive.']}[attnFilter];
+  return `<div class="card"><div class="toolbar"><div class="seg">${segs.map(([k,lab,n])=>`<button data-attn="${k}" aria-pressed="${attnFilter===k}">${lab}<span class="mono" style="margin-left:6px;opacity:.7">${n}</span></button>`).join('')}</div></div>
+  ${h?`<div class="rows">${h}</div>`:leads.length?emptyState('check',empty[0],empty[1]):noLeadsYet()}</div>`}
 function vFollowups(){
   const up=leads.filter(l=>upcoming(l)&&matchQ(l)).sort((a,b)=>a.follow_up_at-b.follow_up_at);
   const by=new Map();for(const l of up){const d=new Date(l.follow_up_at);const k=d.toDateString();if(!by.has(k))by.set(k,{d,ls:[]});by.get(k).ls.push(l)}
@@ -483,8 +498,9 @@ async function patch(body,msg){try{await api('/api/leads/'+encodeURIComponent(se
 document.addEventListener('click',async e=>{
   if(e.target.closest('[data-close]')){closeDrawer();return}
   if(e.target.closest('select,input,textarea,a'))return;
-  const pg=e.target.closest('[data-page]');if(pg){page=pg.dataset.page;confirmKey=null;render();if(page==='archived')loadArchived();window.scrollTo({top:0});return}
+  const pg=e.target.closest('[data-page]');if(pg){page=pg.dataset.page;attnFilter=pg.dataset.af||'all';confirmKey=null;render();if(page==='archived')loadArchived();window.scrollTo({top:0});return}
   const st=e.target.closest('[data-stage]');if(st){stageFilter=st.dataset.stage;render();return}
+  const af=e.target.closest('[data-attn]');if(af){attnFilter=af.dataset.attn;render();return}
   const o=e.target.closest('[data-open]');if(o){openLead(o.dataset.open);return}
   const qb=e.target.closest('[data-q]');if(qb){const d=new Date();if(qb.dataset.q==='2h')d.setHours(d.getHours()+2);else{d.setDate(d.getDate()+Number(qb.dataset.q));d.setHours(11,0,0,0)}$('d-fu').value=localInput(d.getTime());return}
   const b=e.target.closest('button');const id=b&&b.id;if(!id)return;
@@ -528,9 +544,9 @@ $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-
 let booted=false;
 async function boot(){
   try{const s=await api('/api/state');waState=s.wa;aiOn=s.ai}catch{return}
-  $('app').hidden=false;
+  $('app').hidden=false;renderClocks();
   if(!['connected','reconnecting','connecting'].includes(waState.status))page='whatsapp';
-  render();await refresh();if(booted)return;booted=true;live();
+  render();await refresh();if(booted)return;booted=true;live();setInterval(renderClocks,15e3);
   setInterval(()=>{const a=document.activeElement;if(!(a&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName)))render()},60e3);
 }
 boot();
